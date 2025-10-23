@@ -53,24 +53,23 @@ struct DrawingCanvasView: View {
     // MARK: - Header View
     private var headerView: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("To: \(sessionManager.drawingState.recipient)")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 36, weight: .semibold))
                 Text("From: \(sessionManager.drawingState.sender)")
-                    .font(.title3)
+                    .font(.system(size: 28))
                     .foregroundColor(.gray)
             }
-            .padding(.leading, 30)
+            .padding(.leading, 40)
 
             Spacer()
 
             Text("Step 3 of 3")
-                .font(.headline)
+                .font(.system(size: 28))
                 .foregroundColor(.gray)
-                .padding(.trailing, 30)
+                .padding(.trailing, 40)
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 20)
         .background(Color.white.opacity(0.95))
     }
 
@@ -106,11 +105,11 @@ struct DrawingCanvasView: View {
                 // Stroke width slider
                 VStack(spacing: 8) {
                     Text("Width")
-                        .font(.caption)
+                        .font(.system(size: 20))
                         .foregroundColor(.gray)
                     Slider(value: $strokeWidth, in: 1...20, step: 1)
-                        .frame(width: 150)
-                        .accentColor(.blue)
+                        .frame(width: 200)
+                        .accentColor(Color(red: 1.0, green: 0.5, blue: 0.0))
                 }
 
                 Spacer()
@@ -120,13 +119,13 @@ struct DrawingCanvasView: View {
                     canvasView.undoManager?.undo()
                     sessionManager.triggerHaptic(.light)
                 }) {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 8) {
                         Image(systemName: "arrow.uturn.backward.circle.fill")
-                            .font(.system(size: 32))
+                            .font(.system(size: 44))
                         Text("Undo")
-                            .font(.caption)
+                            .font(.system(size: 18))
                     }
-                    .foregroundColor(.blue)
+                    .foregroundColor(Color(red: 1.0, green: 0.5, blue: 0.0))
                 }
                 .disabled(canvasView.undoManager?.canUndo != true)
 
@@ -135,11 +134,11 @@ struct DrawingCanvasView: View {
                     sessionManager.drawingState.drawing = PKDrawing()
                     sessionManager.triggerHaptic(.medium)
                 }) {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 8) {
                         Image(systemName: "trash.circle.fill")
-                            .font(.system(size: 32))
+                            .font(.system(size: 44))
                         Text("Clear")
-                            .font(.caption)
+                            .font(.system(size: 18))
                     }
                     .foregroundColor(.red)
                 }
@@ -190,18 +189,18 @@ struct DrawingCanvasView: View {
             .padding(.horizontal, 30)
 
             // Action buttons
-            HStack(spacing: 20) {
+            HStack(spacing: 30) {
                 Button(action: {
                     sessionManager.triggerHaptic(.light)
                     sessionManager.currentState = .templateSelection
                 }) {
                     Text("Change Template")
-                        .font(.headline)
+                        .font(.system(size: 32))
                         .foregroundColor(.gray)
-                        .padding(.horizontal, 30)
-                        .padding(.vertical, 15)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(12)
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 25)
+                        .background(Color.gray.opacity(0.15))
+                        .cornerRadius(16)
                 }
 
                 Spacer()
@@ -210,27 +209,31 @@ struct DrawingCanvasView: View {
                     sessionManager.triggerHaptic(.medium)
                     sessionManager.proceedToPreview()
                 }) {
-                    HStack {
+                    HStack(spacing: 15) {
                         Image(systemName: "eye.fill")
+                            .font(.system(size: 36))
                         Text("Preview & Submit")
+                            .font(.system(size: 36, weight: .bold))
                     }
-                    .font(.title3)
-                    .fontWeight(.semibold)
                     .foregroundColor(.white)
-                    .padding(.horizontal, 40)
-                    .padding(.vertical, 15)
+                    .padding(.horizontal, 50)
+                    .padding(.vertical, 25)
                     .background(
                         LinearGradient(
-                            colors: [Color.blue, Color.purple],
+                            colors: [
+                                Color(red: 1.0, green: 0.4, blue: 0.3),
+                                Color(red: 1.0, green: 0.6, blue: 0.0)
+                            ],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    .cornerRadius(12)
+                    .cornerRadius(16)
+                    .shadow(color: .orange.opacity(0.4), radius: 15, y: 10)
                 }
             }
-            .padding(.horizontal, 30)
-            .padding(.bottom, 20)
+            .padding(.horizontal, 40)
+            .padding(.bottom, 30)
         }
     }
 }
@@ -244,17 +247,17 @@ struct ToolButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 28))
+                    .font(.system(size: 40))
                 Text(label)
-                    .font(.caption)
+                    .font(.system(size: 18))
             }
-            .foregroundColor(isSelected ? .blue : .gray)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            .background(isSelected ? Color.blue.opacity(0.1) : Color.clear)
-            .cornerRadius(12)
+            .foregroundColor(isSelected ? Color(red: 1.0, green: 0.5, blue: 0.0) : .gray)
+            .padding(.horizontal, 30)
+            .padding(.vertical, 15)
+            .background(isSelected ? Color.orange.opacity(0.1) : Color.clear)
+            .cornerRadius(16)
         }
     }
 }
@@ -270,12 +273,12 @@ struct ColorButton: View {
             ZStack {
                 Circle()
                     .fill(color)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 56, height: 56)
 
                 if isSelected {
                     Circle()
-                        .stroke(Color.blue, lineWidth: 3)
-                        .frame(width: 50, height: 50)
+                        .stroke(Color(red: 1.0, green: 0.5, blue: 0.0), lineWidth: 4)
+                        .frame(width: 66, height: 66)
                 }
             }
         }
@@ -295,6 +298,7 @@ struct PKCanvasViewRepresentable: UIViewRepresentable {
         canvasView.backgroundColor = .clear
         canvasView.isOpaque = false
         canvasView.drawingPolicy = .anyInput
+        canvasView.delegate = context.coordinator
 
         // Set initial tool
         updateTool()
@@ -330,11 +334,15 @@ struct PKCanvasViewRepresentable: UIViewRepresentable {
         Coordinator(drawing: $drawing)
     }
 
-    class Coordinator: NSObject {
+    class Coordinator: NSObject, PKCanvasViewDelegate {
         @Binding var drawing: PKDrawing
 
         init(drawing: Binding<PKDrawing>) {
             self._drawing = drawing
+        }
+
+        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+            drawing = canvasView.drawing
         }
     }
 }

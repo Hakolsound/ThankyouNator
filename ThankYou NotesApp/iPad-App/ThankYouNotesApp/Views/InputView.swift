@@ -14,51 +14,63 @@ struct InputView: View {
 
             VStack(spacing: 40) {
                 // Header
-                VStack(spacing: 10) {
+                VStack(spacing: 20) {
                     Text("Who would you like to thank?")
-                        .font(.system(size: 42, weight: .semibold))
+                        .font(.system(size: 64, weight: .bold))
                         .multilineTextAlignment(.center)
                         .foregroundColor(.primary)
 
                     Text("Step 1 of 3")
-                        .font(.title3)
+                        .font(.system(size: 32))
                         .foregroundColor(.gray)
                 }
-                .padding(.top, 80)
+                .padding(.top, 100)
 
                 Spacer()
 
                 // Input fields
-                VStack(spacing: 30) {
+                VStack(spacing: 50) {
                     // Recipient field (larger, emphasized)
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 20) {
                         Text("To:")
-                            .font(.title2)
-                            .foregroundColor(.gray)
+                            .font(.system(size: 48, weight: .semibold))
+                            .foregroundColor(.orange)
 
                         TextField("Recipient Name", text: $sessionManager.drawingState.recipient)
-                            .font(.system(size: 36, weight: .medium))
-                            .padding(20)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
+                            .font(.system(size: 56, weight: .medium))
+                            .padding(30)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.orange.opacity(0.1))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .stroke(Color.orange.opacity(0.3), lineWidth: 3)
+                                    )
+                            )
                             .focused($focusedField, equals: .recipient)
                     }
 
-                    // Sender field (smaller)
-                    VStack(alignment: .leading, spacing: 12) {
+                    // Sender field
+                    VStack(alignment: .leading, spacing: 20) {
                         Text("From:")
-                            .font(.title3)
+                            .font(.system(size: 42, weight: .semibold))
                             .foregroundColor(.gray)
 
                         TextField("Your Name", text: $sessionManager.drawingState.sender)
-                            .font(.system(size: 28))
-                            .padding(20)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
+                            .font(.system(size: 48))
+                            .padding(30)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.gray.opacity(0.08))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                                    )
+                            )
                             .focused($focusedField, equals: .sender)
                     }
                 }
-                .padding(.horizontal, 60)
+                .padding(.horizontal, 80)
 
                 // Error message
                 if let error = sessionManager.lastError {
@@ -70,21 +82,22 @@ struct InputView: View {
                 Spacer()
 
                 // Navigation buttons
-                HStack(spacing: 30) {
+                HStack(spacing: 40) {
                     Button(action: {
                         sessionManager.triggerHaptic(.light)
                         sessionManager.currentState = .welcome
                     }) {
-                        HStack {
+                        HStack(spacing: 15) {
                             Image(systemName: "chevron.left")
+                                .font(.system(size: 32))
                             Text("Back")
+                                .font(.system(size: 40))
                         }
-                        .font(.title2)
                         .foregroundColor(.gray)
-                        .padding(.horizontal, 40)
-                        .padding(.vertical, 20)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(12)
+                        .padding(.horizontal, 60)
+                        .padding(.vertical, 30)
+                        .background(Color.gray.opacity(0.15))
+                        .cornerRadius(20)
                     }
 
                     Button(action: {
@@ -92,29 +105,33 @@ struct InputView: View {
                         focusedField = nil
                         sessionManager.proceedToTemplateSelection()
                     }) {
-                        HStack {
+                        HStack(spacing: 15) {
                             Text("Next")
-                            Image(systemName: "chevron.right")
+                                .font(.system(size: 44, weight: .bold))
+                            Image(systemName: "arrow.right.circle.fill")
+                                .font(.system(size: 44))
                         }
-                        .font(.title2)
-                        .fontWeight(.semibold)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
+                        .padding(.vertical, 35)
                         .background(
                             LinearGradient(
-                                colors: [Color.blue, Color.purple],
+                                colors: [
+                                    Color(red: 1.0, green: 0.4, blue: 0.3),
+                                    Color(red: 1.0, green: 0.6, blue: 0.0)
+                                ],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
-                        .cornerRadius(12)
+                        .cornerRadius(20)
+                        .shadow(color: .orange.opacity(0.4), radius: 15, y: 10)
                         .opacity(sessionManager.drawingState.recipient.isEmpty ? 0.5 : 1.0)
                     }
                     .disabled(sessionManager.drawingState.recipient.isEmpty)
                 }
-                .padding(.horizontal, 60)
-                .padding(.bottom, 60)
+                .padding(.horizontal, 80)
+                .padding(.bottom, 80)
             }
         }
         .onAppear {

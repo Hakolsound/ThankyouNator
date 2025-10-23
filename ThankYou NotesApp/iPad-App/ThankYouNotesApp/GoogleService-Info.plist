@@ -2,14 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>900015312245-3ed0k7svjajk6iqlpbs2mn7nj3p5domu.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.900015312245-3ed0k7svjajk6iqlpbs2mn7nj3p5domu</string>
 	<key>API_KEY</key>
-	<string>AIzaSyAeAEb7D8jsXskzTdqpHZljMly7xNyowlY</string>
+	<string>AIzaSyD3psvOkdxSvs6bug-nFV9dVUpZMcCDITE</string>
 	<key>GCM_SENDER_ID</key>
 	<string>900015312245</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.thankyou.notes</string>
+	<string>Hakol.ThankYouNotesApp</string>
 	<key>PROJECT_ID</key>
 	<string>scrabble-6b9ff</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,7 +29,7 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:900015312245:web:fb317c8f117abb8b39573c</string>
+	<string>1:900015312245:ios:89979b5ebab17e6539573c</string>
 	<key>DATABASE_URL</key>
 	<string>https://scrabble-6b9ff-default-rtdb.firebaseio.com</string>
 </dict>

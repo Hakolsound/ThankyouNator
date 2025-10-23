@@ -14,7 +14,7 @@ struct ContentView: View {
             case .templateSelection:
                 TemplateSelectionView()
             case .drawing:
-                DrawingCanvasView()
+                EnhancedDrawingCanvasView()
             case .preview:
                 PreviewView()
             case .submitting:
