@@ -78,7 +78,13 @@ struct EnhancedDrawingCanvasView: View {
                             let calculatedHeight = calculatedWidth / targetAspectRatio
 
                             ZStack {
-                            // PKCanvas at bottom - allows drawing everywhere
+                            // Template background and decorations at the very bottom
+                            ZStack {
+                                Color(hexString: sessionManager.drawingState.template.backgroundColor)
+                                TemplateDecorationsView(template: sessionManager.drawingState.template)
+                            }
+
+                            // PKCanvas on top - allows drawing everywhere
                             EnhancedPKCanvasViewRepresentable(
                                 canvasView: $canvasView,
                                 drawing: $sessionManager.drawingState.drawing,
@@ -87,7 +93,7 @@ struct EnhancedDrawingCanvasView: View {
                                 strokeWidth: strokeWidth,
                                 selectedColor: selectedColor
                             )
-                            .background(Color.white.opacity(0.01))
+                            .background(Color.clear)
                             .allowsHitTesting(selectedOverlayId == nil) // Only draw when no overlay selected
 
                             // ALL overlays on top of drawing - interactive
@@ -131,12 +137,6 @@ struct EnhancedDrawingCanvasView: View {
                             }
                             }
                             .frame(width: calculatedWidth, height: calculatedHeight)
-                            .background(
-                                ZStack {
-                                    Color(hexString: sessionManager.drawingState.template.backgroundColor)
-                                    TemplateDecorationsView(template: sessionManager.drawingState.template)
-                                }
-                            )
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 // Deselect overlay when tapping empty space
@@ -1195,11 +1195,204 @@ struct TemplateDecorationsView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            Canvas { context, size in
-                drawDecorations(context: context, size: size)
+            ZStack {
+                // Use ZStack for gradient effects that Canvas can't do well
+                gradientDecorations(size: geometry.size)
+
+                // Use Canvas for shapes and patterns
+                Canvas { context, size in
+                    drawDecorations(context: context, size: size)
+                }
             }
         }
         .allowsHitTesting(false) // Don't intercept touches
+    }
+
+    @ViewBuilder
+    private func gradientDecorations(size: CGSize) -> some View {
+        switch template {
+        case .moody:
+            // Soft purple glow with radial gradient
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.purple.opacity(0.5),
+                            Color.purple.opacity(0.3),
+                            Color.purple.opacity(0.1),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 200
+                    )
+                )
+                .frame(width: 400, height: 400)
+                .position(x: size.width / 2, y: size.height / 2)
+                .blur(radius: 40)
+
+        case .neonGlow:
+            // Cyan glow
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.cyan.opacity(0.6), Color.cyan.opacity(0.2), Color.clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 100
+                    )
+                )
+                .frame(width: 200, height: 200)
+                .position(x: size.width * 0.25, y: size.height * 0.3)
+                .blur(radius: 20)
+
+            // Pink glow
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.pink.opacity(0.6), Color.pink.opacity(0.2), Color.clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 120
+                    )
+                )
+                .frame(width: 280, height: 280)
+                .position(x: size.width * 0.75, y: size.height * 0.65)
+                .blur(radius: 25)
+
+        case .galaxy:
+            // Purple cloud
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.purple.opacity(0.4), Color.purple.opacity(0.2), Color.clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 200
+                    )
+                )
+                .frame(width: 400, height: 400)
+                .position(x: size.width * 0.3, y: size.height * 0.35)
+                .blur(radius: 30)
+
+            // Blue cloud
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.blue.opacity(0.3), Color.blue.opacity(0.15), Color.clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 180
+                    )
+                )
+                .frame(width: 360, height: 360)
+                .position(x: size.width * 0.6, y: size.height * 0.55)
+                .blur(radius: 25)
+
+            // Pink cloud
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.pink.opacity(0.25), Color.pink.opacity(0.1), Color.clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 150
+                    )
+                )
+                .frame(width: 300, height: 300)
+                .position(x: size.width * 0.5, y: size.height * 0.7)
+                .blur(radius: 20)
+
+        case .sunset:
+            // Gradient bands with soft edges
+            VStack(spacing: 0) {
+                LinearGradient(
+                    colors: [Color.orange.opacity(0.5), Color.orange.opacity(0.3)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: size.height / 3)
+
+                LinearGradient(
+                    colors: [Color.orange.opacity(0.3), Color.pink.opacity(0.35), Color.pink.opacity(0.25)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: size.height / 3)
+
+                LinearGradient(
+                    colors: [Color.pink.opacity(0.25), Color.purple.opacity(0.2)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: size.height / 3)
+            }
+
+        case .watercolor:
+            // Blue watercolor blob
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.1), Color.clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 150
+                    )
+                )
+                .frame(width: 300, height: 300)
+                .position(x: size.width * 0.25, y: size.height * 0.25)
+                .blur(radius: 15)
+
+            // Purple watercolor blob
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.purple.opacity(0.15), Color.purple.opacity(0.08), Color.clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 120
+                    )
+                )
+                .frame(width: 240, height: 240)
+                .position(x: size.width * 0.75, y: size.height * 0.75)
+                .blur(radius: 12)
+
+        case .gradient:
+            // Light gradient from purple to pink
+            LinearGradient(
+                colors: [
+                    Color.purple.opacity(0.3),
+                    Color.pink.opacity(0.25),
+                    Color.orange.opacity(0.2)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+        case .darkGradient:
+            // Dark gradient from deep purple to black
+            LinearGradient(
+                colors: [
+                    Color.purple.opacity(0.4),
+                    Color.purple.opacity(0.2),
+                    Color.black.opacity(0.3)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+        case .floral:
+            // Soft peachy gradient overlay
+            RadialGradient(
+                colors: [Color.clear, Color.orange.opacity(0.1), Color.orange.opacity(0.05)],
+                center: .center,
+                startRadius: 100,
+                endRadius: 300
+            )
+
+        default:
+            EmptyView()
+        }
     }
 
     private func drawDecorations(context: GraphicsContext, size: CGSize) {
@@ -1215,15 +1408,6 @@ struct TemplateDecorationsView: View {
             for (index, color) in colors.enumerated() {
                 let rect = CGRect(x: CGFloat(index) * stripeWidth, y: 0, width: stripeWidth, height: size.height)
                 context.fill(Path(rect), with: .color(color.opacity(0.2)))
-            }
-
-        case .sunset:
-            // Gradient bands
-            let colors: [Color] = [.orange.opacity(0.4), .pink.opacity(0.3), .purple.opacity(0.2)]
-            let bandHeight = size.height / CGFloat(colors.count)
-            for (index, color) in colors.enumerated() {
-                let rect = CGRect(x: 0, y: CGFloat(index) * bandHeight, width: size.width, height: bandHeight)
-                context.fill(Path(rect), with: .color(color))
             }
 
         case .confetti, .darkConfetti:
@@ -1263,23 +1447,112 @@ struct TemplateDecorationsView: View {
             }
 
         case .galaxy:
-            // Galaxy clouds
-            let colors = [Color.purple.opacity(0.4), Color.blue.opacity(0.3), Color.pink.opacity(0.2)]
-            for (index, color) in colors.enumerated() {
-                let cloud = Circle().path(in: CGRect(
-                    x: CGFloat(index) * 200*scaleX,
-                    y: CGFloat(index) * 250*scaleY,
-                    width: 400*scaleX,
-                    height: 400*scaleY
-                ))
-                context.fill(cloud, with: .color(color))
-            }
-            // Stars
+            // Stars only (clouds handled by gradient view)
             for _ in 0..<30 {
                 let x = CGFloat.random(in: 0...size.width)
                 let y = CGFloat.random(in: 0...size.height)
                 let circle = Circle().path(in: CGRect(x: x, y: y, width: 3*scaleX, height: 3*scaleY))
                 context.fill(circle, with: .color(.white.opacity(0.7)))
+            }
+
+        case .stickyNote:
+            // Horizontal lines
+            for i in 0..<12 {
+                let y = 150*scaleY + CGFloat(i) * (size.height / 15)
+                let line = Path { path in
+                    path.move(to: CGPoint(x: 50*scaleX, y: y))
+                    path.addLine(to: CGPoint(x: size.width - 50*scaleX, y: y))
+                }
+                context.stroke(line, with: .color(.gray.opacity(0.2)), lineWidth: 1.5)
+            }
+
+        case .heartBorder:
+            // Hearts at top and bottom
+            let heartSize: CGFloat = 30 * scaleX
+            let spacing: CGFloat = 60 * scaleX
+            for i in 0..<Int(size.width/spacing) {
+                let x = CGFloat(i) * spacing + 25*scaleX
+                // Top hearts
+                let topHeart = Circle().path(in: CGRect(x: x, y: 30*scaleY, width: heartSize, height: heartSize))
+                context.fill(topHeart, with: .color(.pink.opacity(0.3)))
+                // Bottom hearts
+                let bottomHeart = Circle().path(in: CGRect(x: x, y: size.height - 60*scaleY, width: heartSize, height: heartSize))
+                context.fill(bottomHeart, with: .color(.pink.opacity(0.3)))
+            }
+
+        case .floral:
+            // Leaf decorations
+            let leafPositions: [(CGFloat, CGFloat)] = [
+                (100*scaleX, 100*scaleY),
+                (size.width-150*scaleX, 150*scaleY),
+                (150*scaleX, size.height-150*scaleY),
+                (size.width-100*scaleX, size.height-120*scaleY)
+            ]
+            for (x, y) in leafPositions {
+                let leaf = Ellipse().path(in: CGRect(x: x, y: y, width: 50*scaleX, height: 25*scaleY))
+                context.fill(leaf, with: .color(.orange.opacity(0.2)))
+            }
+
+        case .craft:
+            // Dashed border
+            let border = Rectangle().path(in: CGRect(x: 40*scaleX, y: 40*scaleY, width: size.width - 80*scaleX, height: size.height - 80*scaleY))
+            context.stroke(border, with: .color(.brown.opacity(0.3)), style: StrokeStyle(lineWidth: 2, dash: [10, 5]))
+
+        case .vintage:
+            // Corner ornaments
+            let cornerSize: CGFloat = 100 * scaleX
+            // Top left
+            let tl = Circle().path(in: CGRect(x: 50*scaleX, y: 50*scaleY, width: cornerSize, height: cornerSize))
+            context.stroke(tl, with: .color(.brown.opacity(0.3)), lineWidth: 1.5)
+            // Top right
+            let tr = Circle().path(in: CGRect(x: size.width - 150*scaleX, y: 50*scaleY, width: cornerSize, height: cornerSize))
+            context.stroke(tr, with: .color(.brown.opacity(0.3)), lineWidth: 1.5)
+            // Bottom left
+            let bl = Circle().path(in: CGRect(x: 50*scaleX, y: size.height - 150*scaleY, width: cornerSize, height: cornerSize))
+            context.stroke(bl, with: .color(.brown.opacity(0.3)), lineWidth: 1.5)
+            // Bottom right
+            let br = Circle().path(in: CGRect(x: size.width - 150*scaleX, y: size.height - 150*scaleY, width: cornerSize, height: cornerSize))
+            context.stroke(br, with: .color(.brown.opacity(0.3)), lineWidth: 1.5)
+
+        case .darkForest:
+            // Dark leaves
+            let leafPositions: [(CGFloat, CGFloat)] = [
+                (150*scaleX, 200*scaleY),
+                (250*scaleX, 300*scaleY),
+                (size.width-200*scaleX, 250*scaleY),
+                (200*scaleX, size.height-250*scaleY)
+            ]
+            for (x, y) in leafPositions {
+                let leaf = Ellipse().path(in: CGRect(x: x, y: y, width: 60*scaleX, height: 30*scaleY))
+                context.fill(leaf, with: .color(.green.opacity(0.4)))
+            }
+
+        case .charcoal:
+            // Minimal frame
+            let frame = Rectangle().path(in: CGRect(x: 50*scaleX, y: 50*scaleY, width: size.width - 100*scaleX, height: size.height - 100*scaleY))
+            context.stroke(frame, with: .color(.white.opacity(0.2)), lineWidth: 1.5)
+
+        case .blackboard:
+            // Chalk lines
+            let lineSpacing: CGFloat = 60 * scaleY
+            for i in 0..<5 {
+                let y = 200*scaleY + CGFloat(i) * lineSpacing
+                let line = Rectangle().path(in: CGRect(x: 150*scaleX, y: y, width: size.width - 300*scaleX, height: 10*scaleY))
+                context.fill(line, with: .color(.white.opacity(0.1)))
+            }
+
+        case .cyberpunk:
+            // Neon horizontal stripes
+            let stripes: [(Color, CGFloat)] = [
+                (.cyan, 200*scaleY),
+                (.pink, 300*scaleY),
+                (.yellow, 400*scaleY),
+                (.cyan, 500*scaleY),
+                (.pink, 600*scaleY)
+            ]
+            for (color, y) in stripes {
+                let line = Rectangle().path(in: CGRect(x: 100*scaleX, y: y, width: size.width - 200*scaleX, height: 8*scaleY))
+                context.fill(line, with: .color(color.opacity(0.3)))
             }
 
         default:
