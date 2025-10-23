@@ -1,0 +1,21 @@
+{
+  "projects": {
+    "default": "scrabble-6b9ff"
+  },
+  "targets": {
+    "scrabble-6b9ff": {
+      "hosting": {
+        "display": [
+          "thankyounotes-display"
+        ],
+        "host": [
+          "thankyounotes-host"
+        ],
+        "upload": [
+          "thankyounotes-upload"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

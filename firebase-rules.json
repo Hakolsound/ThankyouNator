@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "sessions": {
+      "$sessionId": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['iPad_input', 'status', 'createdAt'])",
+        "iPad_input": {
+          ".validate": "newData.hasChildren(['recipient', 'sender', 'drawingImage', 'templateTheme'])"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'ready_for_display' || newData.val() === 'displaying' || newData.val() === 'complete')"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "expiresAt": {
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "settings": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
