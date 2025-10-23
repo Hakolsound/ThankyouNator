@@ -115,12 +115,29 @@ struct PreviewView: View {
             backgroundColor.setFill()
             context.fill(CGRect(origin: .zero, size: canvasSize))
 
-            // Draw the PKDrawing
-            let drawingImage = sessionManager.drawingState.drawing.image(
-                from: CGRect(origin: .zero, size: canvasSize),
-                scale: 2.0
-            )
-            drawingImage.draw(in: CGRect(origin: .zero, size: canvasSize))
+            // Draw the PKDrawing with proper scaling
+            if !sessionManager.drawingState.drawing.bounds.isEmpty {
+                let drawingBounds = sessionManager.drawingState.drawing.bounds
+
+                // Calculate scale to fit drawing bounds into canvas size
+                let scaleX = canvasSize.width / drawingBounds.width
+                let scaleY = canvasSize.height / drawingBounds.height
+                let scale = min(scaleX, scaleY)
+
+                // Get drawing image at its natural size with appropriate scale
+                let drawingImage = sessionManager.drawingState.drawing.image(
+                    from: drawingBounds,
+                    scale: scale
+                )
+
+                // Calculate position to center the scaled drawing
+                let scaledWidth = drawingBounds.width * scale
+                let scaledHeight = drawingBounds.height * scale
+                let x = (canvasSize.width - scaledWidth) / 2
+                let y = (canvasSize.height - scaledHeight) / 2
+
+                drawingImage.draw(in: CGRect(x: x, y: y, width: scaledWidth, height: scaledHeight))
+            }
         }
 
         previewImage = image
