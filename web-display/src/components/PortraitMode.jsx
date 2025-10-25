@@ -1,48 +1,505 @@
-import React, { useEffect, useState } from 'react';
-import NoteCard from './NoteCard';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 
-const PortraitMode = ({ notes }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const PortraitMode = ({
+  notes,
+  displayDuration = 12000,
+  scrollSpeed = 'medium',
+  zoomDuration = 8000,
+  cardsPerRow = 3,
+  focusFrequency = 'normal'
+}) => {
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [focusedIndex, setFocusedIndex] = useState(null);
+  const [focusedRotation, setFocusedRotation] = useState(0);
+  const [isExiting, setIsExiting] = useState(false);
+  const containerRef = useRef(null);
+  const gridRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const lastScrollTimeRef = useRef(Date.now());
+  const lastRotationRef = useRef(Date.now());
 
-  // Auto-advance through notes
+  // Fixed layout grid with 60 card slots
+  const TOTAL_CARDS = 60;
+
+  // Generate sporadic layout with spacers for visual interest
+  const layoutPattern = useMemo(() => {
+    const pattern = [];
+    const sizeWeights = {
+      '1x1': 0.05,    // 5% - rare, interleave look
+      '1x2': 0.65,    // 65% - most common, native aspect
+      '2x3': 0.20,    // 20% - medium emphasis
+      '2x4': 0.10     // 10% - rare hero highlight
+    };
+
+    let currentColumn = 0;
+    let slotIndex = 0;
+
+    // Generate 60 cards with sporadic placement using spacers
+    while (slotIndex < TOTAL_CARDS) {
+      const rand = Math.random();
+      let size, colSpan;
+
+      // Randomly pick size
+      if (rand < sizeWeights['1x1']) {
+        size = '1x1';
+        colSpan = 1;
+      } else if (rand < sizeWeights['1x1'] + sizeWeights['1x2']) {
+        size = '1x2';
+        colSpan = 1;
+      } else if (rand < sizeWeights['1x1'] + sizeWeights['1x2'] + sizeWeights['2x3']) {
+        size = '2x3';
+        colSpan = 2;
+      } else {
+        size = '2x4';
+        colSpan = 2;
+      }
+
+      // Add spacer occasionally for sporadic look (10% chance)
+      if (Math.random() < 0.1 && currentColumn < cardsPerRow - 1) {
+        pattern.push({ id: `spacer-${slotIndex}`, size: 'spacer', isSpacer: true });
+        currentColumn++;
+      }
+
+      // If card doesn't fit in current row, add spacers to fill row
+      if (currentColumn + colSpan > cardsPerRow) {
+        while (currentColumn < cardsPerRow) {
+          pattern.push({ id: `spacer-fill-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+          currentColumn++;
+        }
+        currentColumn = 0;
+      }
+
+      // Add the card
+      pattern.push({ id: `slot-${slotIndex}`, size, colSpan });
+      currentColumn += colSpan;
+
+      // Reset column counter when row is complete
+      if (currentColumn >= cardsPerRow) {
+        currentColumn = 0;
+      }
+
+      slotIndex++;
+    }
+
+    console.log('[PortraitMode] Generated sporadic layout:', {
+      total: pattern.length,
+      cards: slotIndex,
+      spacers: pattern.filter(p => p.isSpacer).length,
+      sizes: pattern.filter(p => !p.isSpacer).reduce((acc, p) => ({ ...acc, [p.size]: (acc[p.size] || 0) + 1 }), {})
+    });
+
+    return pattern;
+  }, [cardsPerRow]); // Regenerate when cardsPerRow changes
+
+  // Map notes to card slots - content only, not positions (skip spacers)
+  const [cardContent, setCardContent] = useState({});
+
+  // Initialize card content when layoutPattern or notes change
   useEffect(() => {
-    if (notes.length <= 1) return; // No need to cycle with one note
+    if (notes.length === 0) {
+      setCardContent({});
+      return;
+    }
 
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % notes.length);
-    }, 12000); // Change note every 12 seconds
+    const content = {};
+    const cardSlots = layoutPattern.filter(slot => !slot.isSpacer);
+    cardSlots.forEach((slot, idx) => {
+      content[slot.id] = notes[idx % notes.length];
+    });
+    setCardContent(content);
+  }, [notes, layoutPattern]);
 
-    return () => clearInterval(interval);
-  }, [notes.length]);
+  // Track which cards are off-screen for content rotation
+  const getVisibleRange = useCallback(() => {
+    const viewportHeight = window.innerHeight;
+    const rowHeight = 200; // Approximate
+    const initialOffset = viewportHeight;
+    const actualScroll = scrollPosition - initialOffset;
 
-  if (notes.length === 0) return null;
+    const topBound = actualScroll - rowHeight * 2;
+    const bottomBound = actualScroll + viewportHeight + rowHeight * 2;
 
-  const currentNote = notes[currentIndex];
+    return { topBound, bottomBound };
+  }, [scrollPosition]);
+
+  // Rotate content in off-screen cards
+  useEffect(() => {
+    if (notes.length === 0) return;
+
+    const rotationInterval = displayDuration || 12000;
+    const now = Date.now();
+
+    if (now - lastRotationRef.current < rotationInterval) return;
+
+    const { topBound, bottomBound } = getVisibleRange();
+    const rowHeight = 200;
+
+    // Find off-screen cards (skip spacers)
+    const offScreenSlots = layoutPattern.filter((slot, idx) => {
+      if (slot.isSpacer) return false;
+      const row = Math.floor(idx / cardsPerRow);
+      const estimatedY = row * rowHeight;
+      return estimatedY < topBound || estimatedY > bottomBound;
+    });
+
+    if (offScreenSlots.length === 0) return;
+
+    // Rotate content in off-screen cards only
+    setCardContent(prev => {
+      const newContent = { ...prev };
+      const unusedNotes = notes.filter(note =>
+        !Object.values(prev).some(card => card?.id === note.id)
+      );
+
+      offScreenSlots.forEach(slot => {
+        if (unusedNotes.length > 0) {
+          const randomNote = unusedNotes[Math.floor(Math.random() * unusedNotes.length)];
+          newContent[slot.id] = randomNote;
+          unusedNotes.splice(unusedNotes.indexOf(randomNote), 1);
+        }
+      });
+
+      return newContent;
+    });
+
+    lastRotationRef.current = now;
+  }, [scrollPosition, notes, displayDuration, layoutPattern, cardsPerRow, getVisibleRange]);
+
+  // Auto-scroll speed mapping
+  const scrollSpeedValue = useMemo(() => {
+    const speeds = {
+      slow: 0.25,
+      medium: 0.5,
+      fast: 0.8
+    };
+    return speeds[scrollSpeed] || 0.5;
+  }, [scrollSpeed]);
+
+  // Focus frequency mapping
+  const focusFrequencyValue = useMemo(() => {
+    const frequencies = {
+      never: 0,
+      rare: 3,
+      normal: 1,
+      frequent: 0.5
+    };
+    return frequencies[focusFrequency] || 1;
+  }, [focusFrequency]);
+
+  // Smooth scroll animation using RAF
+  useEffect(() => {
+    if (notes.length === 0) {
+      return;
+    }
+
+    const animate = () => {
+      const now = Date.now();
+      const delta = now - lastScrollTimeRef.current;
+      lastScrollTimeRef.current = now;
+
+      const scrollDelta = scrollSpeedValue * delta / 16.67;
+      setScrollPosition(prev => prev + scrollDelta);
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [scrollSpeedValue, notes.length]);
+
+  // Random focus effect - show focused card in overlay
+  useEffect(() => {
+    if (focusFrequencyValue === 0 || notes.length === 0) {
+      return;
+    }
+
+    const focusCard = () => {
+      // Get non-spacer slots only
+      const cardSlots = layoutPattern.filter(slot => !slot.isSpacer);
+      if (cardSlots.length === 0) return;
+
+      const randomSlot = cardSlots[Math.floor(Math.random() * cardSlots.length)];
+      const rotation = Math.random() * 6 - 3; // Calculate rotation once
+
+      setFocusedRotation(rotation);
+      setIsExiting(false);
+      setFocusedIndex(randomSlot.id);
+
+      setTimeout(() => {
+        setIsExiting(true);
+        setTimeout(() => {
+          setFocusedIndex(null);
+          setIsExiting(false);
+        }, 200); // Wait for exit animation to complete
+      }, zoomDuration);
+    };
+
+    // Initial focus after half the interval
+    const initialDelay = focusFrequencyValue * 30000;
+    const initialTimeout = setTimeout(focusCard, initialDelay);
+
+    // Regular interval
+    const intervalTime = focusFrequencyValue * 60000;
+    const interval = setInterval(focusCard, intervalTime);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [focusFrequencyValue, zoomDuration, notes.length, layoutPattern]);
+
+  // Get card classes based on size (height adjusted for note aspect ratio)
+  const getCardClasses = (size) => {
+    const baseClasses = 'bg-white rounded-2xl shadow-2xl overflow-hidden transition-all duration-300';
+
+    switch (size) {
+      case '1x1':
+        return `${baseClasses} col-span-1 row-span-2`; // Taller for square crop
+      case '1x2':
+        return `${baseClasses} col-span-1 row-span-3`; // Taller for native aspect
+      case '2x3':
+        return `${baseClasses} col-span-2 row-span-5`; // Much taller for emphasis
+      case '2x4':
+        return `${baseClasses} col-span-2 row-span-7`; // Extra tall hero
+      default:
+        return `${baseClasses} col-span-1 row-span-3`;
+    }
+  };
+
+  // Get header size based on card size
+  const getHeaderClass = (size) => {
+    switch (size) {
+      case '1x1':
+        return 'px-3 py-2';
+      case '1x2':
+        return 'px-4 py-3';
+      case '2x3':
+      case '2x4':
+        return 'px-6 py-4';
+      default:
+        return 'px-4 py-3';
+    }
+  };
+
+  // All images should cover full width, maintaining aspect ratio with height adjustment
+  const getImageFit = (size) => {
+    return 'object-cover'; // Always fill width, card height adjusts to accommodate
+  };
+
+  if (notes.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
+        <p className="text-2xl text-gray-400">No thank you notes to display</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-12">
-      <div className="animate-fade-in" key={currentNote.id}>
-        <NoteCard note={currentNote} large />
-      </div>
-
-      {/* Page indicator dots (bottom) */}
-      {notes.length > 1 && (
-        <div className="fixed bottom-8">
-          <div className="flex gap-3">
-            {notes.slice(0, Math.min(10, notes.length)).map((_, i) => (
+    <>
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 overflow-hidden relative"
+      style={{ perspective: '1000px' }}
+    >
+      <div
+        ref={gridRef}
+        className={`grid gap-4 p-8 auto-rows-[100px] transition-transform duration-100 ease-linear`}
+        style={{
+          transform: `translateY(-${scrollPosition}px) translateZ(0)`,
+          willChange: 'transform',
+          gridTemplateColumns: `repeat(${cardsPerRow}, 1fr)`
+        }}
+      >
+        {layoutPattern.map((slot, index) => {
+          // Render spacer as empty div
+          if (slot.isSpacer) {
+            return (
               <div
-                key={i}
-                className={`h-3 rounded-full transition-all duration-300 ${
-                  i === currentIndex
-                    ? 'bg-orange-500 w-12'
-                    : 'bg-gray-300 w-3'
-                }`}
+                key={slot.id}
+                className="col-span-1 row-span-1"
               />
-            ))}
+            );
+          }
+
+          const note = cardContent[slot.id];
+          if (!note) return null;
+
+          const size = slot.size;
+
+          return (
+            <div
+              key={slot.id}
+              className={`${getCardClasses(size)} flex flex-col`}
+            >
+              {/* Card Header */}
+              <div className={`bg-gradient-to-r from-purple-500 to-pink-500 flex-shrink-0 ${getHeaderClass(size)}`}>
+                <h3 className={`font-bold text-white ${size === '1x1' ? 'text-xs' : size === '2x3' || size === '2x4' ? 'text-lg' : 'text-sm'}`}>
+                  To: {note.iPad_input?.recipient || 'Unknown'}
+                </h3>
+                <p className={`text-white/80 ${size === '1x1' ? 'text-xs' : size === '2x3' || size === '2x4' ? 'text-base' : 'text-sm'}`}>
+                  From: {note.iPad_input?.sender || 'Unknown'}
+                </p>
+              </div>
+
+              {/* Card Image */}
+              <div className="relative flex-1 w-full overflow-hidden bg-gray-50">
+                <img
+                  src={`data:image/png;base64,${note.iPad_input?.drawingImage}`}
+                  alt="Thank you note"
+                  className={`w-full h-full ${getImageFit(size)}`}
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+      {/* Focus Overlay - Rendered outside overflow-hidden container */}
+      {focusedIndex && cardContent[focusedIndex] && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem',
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            animation: isExiting ? 'fadeOutBackground 0.2s ease-out' : 'fadeInBackground 0.6s ease-out'
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '31.5rem',
+              transform: `rotate(${focusedRotation}deg)`,
+              animation: isExiting ? 'slideOutCard 0.2s ease-out' : 'slideInCard 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '1rem',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: '85vh'
+              }}
+            >
+              {/* Card Header */}
+              <div
+                style={{
+                  background: 'linear-gradient(to right, rgb(168, 85, 247), rgb(236, 72, 153))',
+                  padding: '2rem',
+                  flexShrink: 0
+                }}
+              >
+                <h3 style={{ fontWeight: 'bold', color: 'white', fontSize: '1.875rem', margin: 0 }}>
+                  To: {cardContent[focusedIndex].iPad_input?.recipient || 'Unknown'}
+                </h3>
+                <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '1.25rem', marginTop: '0.5rem', marginBottom: 0 }}>
+                  From: {cardContent[focusedIndex].iPad_input?.sender || 'Unknown'}
+                </p>
+              </div>
+
+              {/* Card Image */}
+              <div
+                style={{
+                  position: 'relative',
+                  flex: 1,
+                  width: '100%',
+                  backgroundColor: 'rgb(249, 250, 251)',
+                  minHeight: '400px',
+                  maxHeight: '70vh',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden'
+                }}
+              >
+                <img
+                  src={`data:image/png;base64,${cardContent[focusedIndex].iPad_input?.drawingImage}`}
+                  alt="Thank you note"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain'
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
-    </div>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeInBackground {
+          0% {
+            opacity: 0;
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+          }
+          100% {
+            opacity: 1;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+          }
+        }
+
+        @keyframes fadeOutBackground {
+          0% {
+            opacity: 1;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+          }
+          100% {
+            opacity: 0;
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+          }
+        }
+
+        @keyframes slideInCard {
+          0% {
+            transform: scale(0.7) translateY(30px);
+            opacity: 0;
+          }
+          60% {
+            transform: scale(1.02);
+          }
+          100% {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes slideOutCard {
+          0% {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(0.8) translateY(20px);
+            opacity: 0;
+          }
+        }
+      `}} />
+    </>
   );
 };
 
