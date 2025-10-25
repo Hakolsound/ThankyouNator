@@ -6,7 +6,18 @@ const PortraitMode = ({
   scrollSpeed = 'medium',
   zoomDuration = 8000,
   cardsPerRow = 3,
-  focusFrequency = 'normal'
+  focusFrequency = 'normal',
+  branding = {
+    backgroundType: 'gradient',
+    backgroundColor: '#f0f0f0',
+    gradientStart: '#faf5ff',
+    gradientEnd: '#fce7f3',
+    backgroundImage: '',
+    headerColorStart: '#a855f7',
+    headerColorEnd: '#ec4899',
+    headerFont: 'system-ui',
+    headerPadding: 'normal'
+  }
 }) => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [focusedIndex, setFocusedIndex] = useState(null);
@@ -271,19 +282,49 @@ const PortraitMode = ({
     }
   };
 
-  // Get header size based on card size
-  const getHeaderClass = (size) => {
+  // Get header padding based on card size and branding settings
+  const getHeaderPadding = (size) => {
+    const paddingMultiplier = {
+      compact: 0.5,
+      normal: 1,
+      spacious: 1.5
+    }[branding.headerPadding] || 1;
+
     switch (size) {
       case '1x1':
-        return 'px-3 py-2';
+        return { paddingLeft: '0.75rem', paddingRight: '0.75rem', paddingTop: `${0.5 * paddingMultiplier}rem`, paddingBottom: `${0.5 * paddingMultiplier}rem` };
       case '1x2':
-        return 'px-4 py-3';
+        return { paddingLeft: '1rem', paddingRight: '1rem', paddingTop: `${0.75 * paddingMultiplier}rem`, paddingBottom: `${0.75 * paddingMultiplier}rem` };
       case '2x3':
       case '2x4':
-        return 'px-6 py-4';
+        return { paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingTop: `${1 * paddingMultiplier}rem`, paddingBottom: `${1 * paddingMultiplier}rem` };
       default:
-        return 'px-4 py-3';
+        return { paddingLeft: '1rem', paddingRight: '1rem', paddingTop: `${0.75 * paddingMultiplier}rem`, paddingBottom: `${0.75 * paddingMultiplier}rem` };
     }
+  };
+
+  // Get background style based on branding settings
+  const getBackgroundStyle = () => {
+    switch (branding.backgroundType) {
+      case 'solid':
+        return { backgroundColor: branding.backgroundColor };
+      case 'gradient':
+        return { background: `linear-gradient(to br, ${branding.gradientStart}, ${branding.gradientEnd})` };
+      case 'image':
+        return branding.backgroundImage
+          ? { backgroundImage: `url(${branding.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          : { background: `linear-gradient(to br, ${branding.gradientStart}, ${branding.gradientEnd})` };
+      default:
+        return { background: `linear-gradient(to br, ${branding.gradientStart}, ${branding.gradientEnd})` };
+    }
+  };
+
+  // Get header gradient style
+  const getHeaderStyle = () => {
+    return {
+      background: `linear-gradient(to right, ${branding.headerColorStart}, ${branding.headerColorEnd})`,
+      fontFamily: branding.headerFont
+    };
   };
 
   // All images should cover full width, maintaining aspect ratio with height adjustment
@@ -293,7 +334,7 @@ const PortraitMode = ({
 
   if (notes.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={getBackgroundStyle()}>
         <p className="text-2xl text-gray-400">No thank you notes to display</p>
       </div>
     );
@@ -303,8 +344,8 @@ const PortraitMode = ({
     <>
     <div
       ref={containerRef}
-      className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 overflow-hidden relative"
-      style={{ perspective: '1000px' }}
+      className="min-h-screen overflow-hidden relative"
+      style={{ perspective: '1000px', ...getBackgroundStyle() }}
     >
       <div
         ref={gridRef}
@@ -337,7 +378,7 @@ const PortraitMode = ({
               className={`${getCardClasses(size)} flex flex-col`}
             >
               {/* Card Header */}
-              <div className={`bg-gradient-to-r from-purple-500 to-pink-500 flex-shrink-0 ${getHeaderClass(size)}`}>
+              <div className="flex-shrink-0" style={{ ...getHeaderStyle(), ...getHeaderPadding(size) }}>
                 <h3 className={`font-bold text-white ${size === '1x1' ? 'text-xs' : size === '2x3' || size === '2x4' ? 'text-lg' : 'text-sm'}`}>
                   To: {note.iPad_input?.recipient || 'Unknown'}
                 </h3>
@@ -404,7 +445,7 @@ const PortraitMode = ({
               {/* Card Header */}
               <div
                 style={{
-                  background: 'linear-gradient(to right, rgb(168, 85, 247), rgb(236, 72, 153))',
+                  ...getHeaderStyle(),
                   padding: '2rem',
                   flexShrink: 0
                 }}

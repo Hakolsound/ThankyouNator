@@ -148,6 +148,13 @@ struct PreviewView: View {
 
                     let photoRect = CGRect(x: -photoSize.width/2, y: -photoSize.height/2,
                                          width: photoSize.width, height: photoSize.height)
+
+                    // Add rounded corners (fixed size, not affected by user scaling)
+                    let cornerRadius: CGFloat = 12
+                    let path = UIBezierPath(roundedRect: photoRect, cornerRadius: cornerRadius)
+                    context.cgContext.addPath(path.cgPath)
+                    context.cgContext.clip()
+
                     photoImage.draw(in: photoRect)
                 }
 
@@ -189,7 +196,7 @@ struct PreviewView: View {
                 switch overlay.type {
                 case .emoji:
                     let attributes: [NSAttributedString.Key: Any] = [
-                        .font: UIFont.systemFont(ofSize: 60),
+                        .font: UIFont.systemFont(ofSize: 120), // Doubled to match canvas
                     ]
                     let emojiString = overlay.content as NSString
                     let size = emojiString.size(withAttributes: attributes)
@@ -270,13 +277,21 @@ struct PreviewView: View {
             context.strokePath()
 
         case .watercolor:
-            // Watercolor circles
-            context.setAlpha(0.15)
-            UIColor.blue.setFill()
-            context.fillEllipse(in: CGRect(x: 200, y: 200, width: 400, height: 400))
-            UIColor.purple.withAlphaComponent(0.1).setFill()
-            context.fillEllipse(in: CGRect(x: size.width - 500, y: size.height - 500, width: 350, height: 350))
-            context.setAlpha(1.0)
+            // Watercolor blobs with radial gradient
+            // First blob - blue
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let blueCenter = CGPoint(x: 300, y: 350)
+            let blueColors = [UIColor.blue.withAlphaComponent(0.2).cgColor, UIColor.blue.withAlphaComponent(0.1).cgColor, UIColor.clear.cgColor] as CFArray
+            if let blueGradient = CGGradient(colorsSpace: colorSpace, colors: blueColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawRadialGradient(blueGradient, startCenter: blueCenter, startRadius: 0, endCenter: blueCenter, endRadius: 150, options: [])
+            }
+
+            // Second blob - purple
+            let purpleCenter = CGPoint(x: size.width - 250, y: size.height - 250)
+            let purpleColors = [UIColor.purple.withAlphaComponent(0.15).cgColor, UIColor.purple.withAlphaComponent(0.08).cgColor, UIColor.clear.cgColor] as CFArray
+            if let purpleGradient = CGGradient(colorsSpace: colorSpace, colors: purpleColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawRadialGradient(purpleGradient, startCenter: purpleCenter, startRadius: 0, endCenter: purpleCenter, endRadius: 120, options: [])
+            }
 
         case .confetti:
             // Random confetti dots
@@ -302,8 +317,16 @@ struct PreviewView: View {
             }
 
         case .gradient:
-            // Already handled by background color, could add overlay gradient
-            break
+            // Linear gradient overlay
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let gradColors = [
+                UIColor.purple.withAlphaComponent(0.3).cgColor,
+                UIColor.systemPink.withAlphaComponent(0.25).cgColor,
+                UIColor.orange.withAlphaComponent(0.2).cgColor
+            ] as CFArray
+            if let linearGrad = CGGradient(colorsSpace: colorSpace, colors: gradColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawLinearGradient(linearGrad, start: CGPoint(x: 0, y: 0), end: CGPoint(x: size.width, y: size.height), options: [])
+            }
 
         case .floral:
             // Leaf decorations
@@ -313,17 +336,48 @@ struct PreviewView: View {
                 context.fillEllipse(in: CGRect(x: x, y: y, width: 60, height: 30))
             }
 
+            // Soft peachy gradient overlay
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let floralCenter = CGPoint(x: size.width / 2, y: size.height / 2)
+            let floralColors = [
+                UIColor.clear.cgColor,
+                UIColor.orange.withAlphaComponent(0.1).cgColor,
+                UIColor.orange.withAlphaComponent(0.05).cgColor
+            ] as CFArray
+            if let floralGrad = CGGradient(colorsSpace: colorSpace, colors: floralColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawRadialGradient(floralGrad, startCenter: floralCenter, startRadius: 100, endCenter: floralCenter, endRadius: 300, options: [])
+            }
+
         case .sunset:
-            // Gradient bands
-            let colors: [UIColor] = [
-                UIColor.orange.withAlphaComponent(0.4),
-                UIColor.systemPink.withAlphaComponent(0.3),
-                UIColor.purple.withAlphaComponent(0.2)
-            ]
-            let bandHeight = size.height / CGFloat(colors.count)
-            for (index, color) in colors.enumerated() {
-                color.setFill()
-                context.fill(CGRect(x: 0, y: CGFloat(index) * bandHeight, width: size.width, height: bandHeight))
+            // Smooth gradient bands with linear gradients
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+            // Top gradient (orange fade)
+            let topColors = [
+                UIColor.orange.withAlphaComponent(0.5).cgColor,
+                UIColor.orange.withAlphaComponent(0.3).cgColor
+            ] as CFArray
+            if let topGrad = CGGradient(colorsSpace: colorSpace, colors: topColors, locations: [0.0, 1.0]) {
+                context.drawLinearGradient(topGrad, start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: size.height / 3), options: [])
+            }
+
+            // Middle gradient (orange to pink)
+            let midColors = [
+                UIColor.orange.withAlphaComponent(0.3).cgColor,
+                UIColor.systemPink.withAlphaComponent(0.35).cgColor,
+                UIColor.systemPink.withAlphaComponent(0.25).cgColor
+            ] as CFArray
+            if let midGrad = CGGradient(colorsSpace: colorSpace, colors: midColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawLinearGradient(midGrad, start: CGPoint(x: 0, y: size.height / 3), end: CGPoint(x: 0, y: 2 * size.height / 3), options: [])
+            }
+
+            // Bottom gradient (pink to purple)
+            let botColors = [
+                UIColor.systemPink.withAlphaComponent(0.25).cgColor,
+                UIColor.purple.withAlphaComponent(0.2).cgColor
+            ] as CFArray
+            if let botGrad = CGGradient(colorsSpace: colorSpace, colors: botColors, locations: [0.0, 1.0]) {
+                context.drawLinearGradient(botGrad, start: CGPoint(x: 0, y: 2 * size.height / 3), end: CGPoint(x: 0, y: size.height), options: [])
             }
 
         case .pastelRainbow:
@@ -367,15 +421,30 @@ struct PreviewView: View {
             }
 
         case .neonGlow:
-            // Neon circles
-            context.setLineWidth(8)
-            context.setShadow(offset: .zero, blur: 20, color: UIColor.cyan.cgColor)
-            UIColor.cyan.setStroke()
-            context.strokeEllipse(in: CGRect(x: 300, y: 400, width: 200, height: 200))
-            context.setShadow(offset: .zero, blur: 20, color: UIColor.systemPink.cgColor)
-            UIColor.systemPink.setStroke()
-            context.strokeEllipse(in: CGRect(x: size.width - 500, y: size.height - 600, width: 300, height: 300))
-            context.setShadow(offset: .zero, blur: 0)
+            // Neon glow with radial gradients
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+            // Cyan glow
+            let cyanCenter = CGPoint(x: size.width * 0.25, y: size.height * 0.3)
+            let cyanColors = [
+                UIColor.cyan.withAlphaComponent(0.6).cgColor,
+                UIColor.cyan.withAlphaComponent(0.2).cgColor,
+                UIColor.clear.cgColor
+            ] as CFArray
+            if let cyanGradient = CGGradient(colorsSpace: colorSpace, colors: cyanColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawRadialGradient(cyanGradient, startCenter: cyanCenter, startRadius: 0, endCenter: cyanCenter, endRadius: 100, options: [])
+            }
+
+            // Pink glow
+            let pinkCenter = CGPoint(x: size.width * 0.75, y: size.height * 0.7)
+            let pinkColors = [
+                UIColor.systemPink.withAlphaComponent(0.6).cgColor,
+                UIColor.systemPink.withAlphaComponent(0.2).cgColor,
+                UIColor.clear.cgColor
+            ] as CFArray
+            if let pinkGradient = CGGradient(colorsSpace: colorSpace, colors: pinkColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawRadialGradient(pinkGradient, startCenter: pinkCenter, startRadius: 0, endCenter: pinkCenter, endRadius: 120, options: [])
+            }
 
         case .deepSpace:
             // Stars and planet
@@ -403,29 +472,63 @@ struct PreviewView: View {
             context.stroke(CGRect(x: 100, y: 100, width: size.width - 200, height: size.height - 200))
 
         case .galaxy:
-            // Galaxy effect with stars
-            let colors = [UIColor.purple.withAlphaComponent(0.4), UIColor.blue.withAlphaComponent(0.3), UIColor.systemPink.withAlphaComponent(0.2)]
-            for (index, color) in colors.enumerated() {
-                color.setFill()
-                context.fillEllipse(in: CGRect(x: CGFloat(index) * 300, y: CGFloat(index) * 400, width: 600, height: 600))
+            // Galaxy effect with radial gradient nebulas
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+            // Purple nebula
+            let purpleCenter = CGPoint(x: size.width * 0.3, y: size.height * 0.35)
+            let purpleColors = [UIColor.purple.withAlphaComponent(0.4).cgColor, UIColor.purple.withAlphaComponent(0.2).cgColor, UIColor.clear.cgColor] as CFArray
+            if let purpleGrad = CGGradient(colorsSpace: colorSpace, colors: purpleColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawRadialGradient(purpleGrad, startCenter: purpleCenter, startRadius: 0, endCenter: purpleCenter, endRadius: 200, options: [])
             }
+
+            // Blue nebula
+            let blueCenter = CGPoint(x: size.width * 0.6, y: size.height * 0.55)
+            let blueColors = [UIColor.blue.withAlphaComponent(0.3).cgColor, UIColor.blue.withAlphaComponent(0.15).cgColor, UIColor.clear.cgColor] as CFArray
+            if let blueGrad = CGGradient(colorsSpace: colorSpace, colors: blueColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawRadialGradient(blueGrad, startCenter: blueCenter, startRadius: 0, endCenter: blueCenter, endRadius: 180, options: [])
+            }
+
+            // Pink nebula
+            let pinkCenter = CGPoint(x: size.width * 0.5, y: size.height * 0.7)
+            let pinkColors = [UIColor.systemPink.withAlphaComponent(0.25).cgColor, UIColor.systemPink.withAlphaComponent(0.1).cgColor, UIColor.clear.cgColor] as CFArray
+            if let pinkGrad = CGGradient(colorsSpace: colorSpace, colors: pinkColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawRadialGradient(pinkGrad, startCenter: pinkCenter, startRadius: 0, endCenter: pinkCenter, endRadius: 150, options: [])
+            }
+
+            // Stars
             UIColor.white.withAlphaComponent(0.7).setFill()
-            for _ in 0..<50 {
+            for _ in 0..<30 {
                 let x = CGFloat.random(in: 0...size.width)
                 let y = CGFloat.random(in: 0...size.height)
-                context.fillEllipse(in: CGRect(x: x, y: y, width: 4, height: 4))
+                context.fillEllipse(in: CGRect(x: x, y: y, width: 3, height: 3))
             }
 
         case .darkGradient:
-            // Purple to black gradient (already in background)
-            break
+            // Dark gradient from deep purple to black
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let darkGradColors = [
+                UIColor.purple.withAlphaComponent(0.4).cgColor,
+                UIColor.purple.withAlphaComponent(0.2).cgColor,
+                UIColor.black.withAlphaComponent(0.3).cgColor
+            ] as CFArray
+            if let darkGrad = CGGradient(colorsSpace: colorSpace, colors: darkGradColors, locations: [0.0, 0.5, 1.0]) {
+                context.drawLinearGradient(darkGrad, start: CGPoint(x: 0, y: 0), end: CGPoint(x: size.width, y: size.height), options: [])
+            }
 
         case .moody:
-            // Purple glow
-            context.setShadow(offset: .zero, blur: 100, color: UIColor.purple.withAlphaComponent(0.5).cgColor)
-            UIColor.purple.withAlphaComponent(0.3).setFill()
-            context.fillEllipse(in: CGRect(x: size.width/2 - 200, y: size.height/2 - 200, width: 400, height: 400))
-            context.setShadow(offset: .zero, blur: 0)
+            // Purple glow with radial gradient
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let moodyCent = CGPoint(x: size.width/2, y: size.height/2)
+            let moodyColors = [
+                UIColor.purple.withAlphaComponent(0.5).cgColor,
+                UIColor.purple.withAlphaComponent(0.3).cgColor,
+                UIColor.purple.withAlphaComponent(0.1).cgColor,
+                UIColor.clear.cgColor
+            ] as CFArray
+            if let moodyGradient = CGGradient(colorsSpace: colorSpace, colors: moodyColors, locations: [0.0, 0.4, 0.7, 1.0]) {
+                context.drawRadialGradient(moodyGradient, startCenter: moodyCent, startRadius: 0, endCenter: moodyCent, endRadius: 200, options: [])
+            }
 
         case .darkConfetti:
             // Neon confetti

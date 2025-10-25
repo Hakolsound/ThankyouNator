@@ -59,7 +59,7 @@ function PhotoUploadPage() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_SIZE = 400; // Maximum width/height
+        const MAX_SIZE = 520; // Maximum width/height (30% increase from 400)
 
         let width = img.width;
         let height = img.height;
@@ -83,7 +83,7 @@ function PhotoUploadPage() {
 
         canvas.toBlob((blob) => {
           callback(blob);
-        }, 'image/jpeg', 0.8); // 80% quality
+        }, 'image/jpeg', 0.92); // 92% quality (improved from 80%)
       };
       img.src = e.target.result;
     };
@@ -110,8 +110,8 @@ function PhotoUploadPage() {
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
 
-    // Resize to max 400px
-    const MAX_SIZE = 400;
+    // Resize to max 520px (30% increase from 400)
+    const MAX_SIZE = 520;
     let width = video.videoWidth;
     let height = video.videoHeight;
 
@@ -135,13 +135,13 @@ function PhotoUploadPage() {
     canvas.toBlob((blob) => {
       if (blob) {
         setPhoto(blob);
-        setPreview(canvas.toDataURL('image/jpeg', 0.8));
+        setPreview(canvas.toDataURL('image/jpeg', 0.92));
         setUseCamera(false);
         if (stream) {
           stream.getTracks().forEach(track => track.stop());
         }
       }
-    }, 'image/jpeg', 0.8);
+    }, 'image/jpeg', 0.92);
   };
 
   const uploadPhoto = async () => {
@@ -267,13 +267,17 @@ function PhotoUploadPage() {
 
           {uploading && (
             <div className="upload-progress">
+              <div className="spinner-container">
+                <div className="spinner"></div>
+              </div>
+              <p className="progress-text">Uploading your photo...</p>
               <div className="progress-bar-container">
                 <div
                   className="progress-bar-fill"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
-              <p className="progress-text">{uploadProgress}%</p>
+              <p className="progress-percentage">{uploadProgress}%</p>
             </div>
           )}
 

@@ -19,12 +19,14 @@ export const useFirebaseListener = () => {
 
     const notesUnsub = onValue(sessionsRef, (snapshot) => {
       const data = snapshot.val();
+
       if (data) {
-        const notesArray = Object.entries(data)
-          .map(([id, note]) => ({
-            id,
-            ...note,
-          }))
+        const allSessions = Object.entries(data).map(([id, note]) => ({
+          id,
+          ...note,
+        }));
+
+        const notesArray = allSessions
           // Filter for ready_for_display OR displaying status
           .filter(note => note.status === 'ready_for_display' || note.status === 'displaying');
 
@@ -36,6 +38,8 @@ export const useFirebaseListener = () => {
       } else {
         setNotes([]);
       }
+    }, (error) => {
+      console.error('[useFirebaseListener] Firebase error:', error);
     });
 
     return () => {

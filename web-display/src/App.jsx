@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useFirebaseListener } from './hooks/useFirebaseListener';
+import { database, ref, onValue } from './firebase';
 import LandscapeMode from './components/LandscapeMode';
 import PortraitMode from './components/PortraitMode';
 import IdleScreen from './components/IdleScreen';
@@ -9,8 +10,41 @@ function App() {
   const { notes, isConnected, lastUpdate, markAsDisplaying } = useFirebaseListener();
   const [displayMode, setDisplayMode] = useState('landscape'); // 'landscape' or 'portrait'
   const [displayDuration, setDisplayDuration] = useState(12000); // 12 seconds
+  const [scrollSpeed, setScrollSpeed] = useState('medium'); // For portrait mode
+  const [zoomDuration, setZoomDuration] = useState(8000); // For portrait mode
+  const [cardsPerRow, setCardsPerRow] = useState(3); // For portrait mode grid
+  const [focusFrequency, setFocusFrequency] = useState('normal'); // For portrait mode
+  const [branding, setBranding] = useState({
+    backgroundType: 'gradient',
+    backgroundColor: '#f0f0f0',
+    gradientStart: '#faf5ff',
+    gradientEnd: '#fce7f3',
+    backgroundImage: '',
+    headerColorStart: '#a855f7',
+    headerColorEnd: '#ec4899',
+    headerFont: 'system-ui',
+    headerPadding: 'normal'
+  });
   const [allNotes, setAllNotes] = useState([]); // Accumulated notes throughout event
   const [processedIds, setProcessedIds] = useState(new Set()); // Track which notes we've shown
+
+  // Listen for display settings from Firebase
+  useEffect(() => {
+    const settingsRef = ref(database, 'displaySettings');
+    const unsub = onValue(settingsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        if (data.displayMode) setDisplayMode(data.displayMode);
+        if (data.displayDuration) setDisplayDuration(data.displayDuration * 1000);
+        if (data.scrollSpeed) setScrollSpeed(data.scrollSpeed);
+        if (data.zoomDuration) setZoomDuration(data.zoomDuration * 1000);
+        if (data.cardsPerRow) setCardsPerRow(data.cardsPerRow);
+        if (data.focusFrequency) setFocusFrequency(data.focusFrequency);
+        if (data.branding) setBranding(data.branding);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Listen for display mode changes from host panel
   useEffect(() => {
@@ -77,9 +111,17 @@ function App() {
       ) : (
         <>
           {displayMode === 'landscape' ? (
-            <LandscapeMode notes={allNotes} />
+            <LandscapeMode notes={allNotes} displayDuration={displayDuration} />
           ) : (
-            <PortraitMode notes={allNotes} />
+            <PortraitMode
+              notes={allNotes}
+              displayDuration={displayDuration}
+              scrollSpeed={scrollSpeed}
+              zoomDuration={zoomDuration}
+              cardsPerRow={cardsPerRow}
+              focusFrequency={focusFrequency}
+              branding={branding}
+            />
           )}
         </>
       )}

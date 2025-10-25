@@ -93,22 +93,33 @@ struct TextOverlayView: View {
     var body: some View {
         GeometryReader { geometry in
             let isLargeScreen = geometry.size.width > 1000
-            let spacing: CGFloat = isLargeScreen ? 30 : 20
-            let previewHeight: CGFloat = isLargeScreen ? 150 : 120
-            let inputHeight: CGFloat = textStyleType == .paragraph ? (isLargeScreen ? 200 : 150) : 0
+            let spacing: CGFloat = isLargeScreen ? 20 : 14
+            let previewHeight: CGFloat = isLargeScreen ? 100 : 85
+            let inputHeight: CGFloat = textStyleType == .paragraph ? (isLargeScreen ? 200 : 160) : 0
 
-            VStack(spacing: spacing) {
-                headerView(isLarge: isLargeScreen)
-                textPreviewView(isLarge: isLargeScreen, height: previewHeight)
-                textInputView(isLarge: isLargeScreen, height: inputHeight)
-                fontPickerView(isLarge: isLargeScreen)
-                colorPickerView(isLarge: isLargeScreen)
-                stylePickerView(isLarge: isLargeScreen)
-                Spacer()
-                addButtonView(isLarge: isLargeScreen)
+            // Calculate modal dimensions
+            let toolbarWidth: CGFloat = isLargeScreen ? 180 : 140
+            let minModalWidth: CGFloat = isLargeScreen ? 840 : 696
+            let modalWidth: CGFloat = minModalWidth
+
+            ZStack {
+                // Modal content centered in entire screen
+                VStack(spacing: spacing) {
+                    headerView(isLarge: isLargeScreen)
+                    textPreviewView(isLarge: isLargeScreen, height: previewHeight)
+                    textInputView(isLarge: isLargeScreen, height: inputHeight)
+                    fontPickerView(isLarge: isLargeScreen)
+                    colorPickerView(isLarge: isLargeScreen)
+                    stylePickerView(isLarge: isLargeScreen)
+                    addButtonView(isLarge: isLargeScreen)
+                }
+                .frame(width: modalWidth)
+                .padding(.vertical, isLargeScreen ? 24 : 20)
+                .background(Color(white: 0.96))
+                .cornerRadius(20)
+                .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+                .offset(x: toolbarWidth / 2, y: 0) // Shift right by half toolbar width to account for toolbar on left
             }
-            .background(Color.white)
-            .cornerRadius(24)
             .overlay(colorPickerOverlay)
         }
     }
@@ -331,10 +342,10 @@ struct TextOverlayView: View {
                 }
             }) {
                 Text("Add Text")
-                    .font(.system(size: isLarge ? 36 : 30, weight: .bold))
+                    .font(.system(size: isLarge ? 20 : 18, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, isLarge ? 25 : 20)
+                    .padding(.vertical, isLarge ? 16 : 14)
                     .background(
                         LinearGradient(
                             colors: [
@@ -345,12 +356,12 @@ struct TextOverlayView: View {
                             endPoint: .trailing
                         )
                     )
-                    .cornerRadius(isLarge ? 20 : 16)
-                    .opacity(text.isEmpty ? 0.5 : 1.0)
+                    .cornerRadius(12)
+                    .opacity(text.isEmpty ? 0.4 : 1.0)
             }
             .disabled(text.isEmpty)
-            .padding(.horizontal, isLarge ? 30 : 20)
-            .padding(.bottom, isLarge ? 30 : 20)
+            .padding(.horizontal, isLarge ? 24 : 20)
+            .padding(.top, isLarge ? 16 : 12)
     }
 
     @ViewBuilder

@@ -140,13 +140,43 @@ body {
 .upload-progress {
   margin: 1.5rem 0;
   text-align: center;
+  padding: 1.5rem;
+  background: #f5f5f7;
+  border-radius: 12px;
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e8e8ed;
+  border-top: 4px solid #0071e3;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.progress-text {
+  font-size: 1.0625rem;
+  color: #1d1d1f;
+  font-weight: 600;
+  margin-bottom: 1rem;
 }
 
 .progress-bar-container {
   width: 100%;
-  height: 6px;
+  height: 8px;
   background: #e8e8ed;
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
   margin-bottom: 0.75rem;
 }
@@ -154,14 +184,15 @@ body {
 .progress-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, #0071e3 0%, #0077ed 100%);
-  border-radius: 3px;
+  border-radius: 4px;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(0, 113, 227, 0.3);
 }
 
-.progress-text {
-  font-size: 0.9375rem;
-  color: #86868b;
-  font-weight: 500;
+.progress-percentage {
+  font-size: 1.125rem;
+  color: #0071e3;
+  font-weight: 600;
 }
 
 .preview-controls {

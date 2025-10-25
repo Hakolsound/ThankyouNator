@@ -762,7 +762,7 @@ struct EnhancedDrawingCanvasView: View {
                 x: Self.canvasRenderSize.width / 2,
                 y: Self.canvasRenderSize.height / 2
             ),
-            scale: 2.0,
+            scale: 0.5, // Reduced from 2.0 since base size is now doubled
             content: emoji
         )
         sessionManager.drawingState.overlays.append(overlay)
@@ -832,9 +832,19 @@ struct EnhancedDrawingCanvasView: View {
     }
 
     private func startListeningForPhotoUploads() {
+        // Don't start listening if already listening
+        guard photoListenerHandle == nil else { return }
+
         let sessionId = sessionManager.drawingState.sessionId
         photoListenerHandle = firebaseService.listenForPhotoUpload(sessionId: sessionId) { [self] base64Image in
             guard let imageData = base64Image else { return }
+
+            // Check if this photo already exists in overlays to prevent duplicates
+            let photoExists = sessionManager.drawingState.overlays.contains { overlay in
+                overlay.type == .photo && overlay.content == imageData
+            }
+
+            guard !photoExists else { return }
 
             // Show loading state and hide QR code
             DispatchQueue.main.async {
@@ -924,7 +934,7 @@ struct OverlayView: View {
     var body: some View {
         // Calculate scaled sizes based on canvas vs render coordinate space
         let sizeScale = canvasSize.width / renderSize.width
-        let scaledEmojiSize = 60.0 * sizeScale
+        let scaledEmojiSize = 120.0 * sizeScale // Doubled from 60 for higher resolution
         let scaledFontSize = (overlay.fontSize ?? 48) * sizeScale
 
         // For photos, calculate actual scaled dimensions
@@ -950,6 +960,7 @@ struct OverlayView: View {
                 case .emoji:
                     Text(overlay.content)
                         .font(.system(size: scaledEmojiSize))
+                        .drawingGroup() // Improves rendering quality for scaled content
 
                 case .text:
                     let textFont: Font = {

@@ -3,17 +3,47 @@ import { database, ref, onValue, update, remove } from './firebase';
 import Dashboard from './components/Dashboard';
 import Controls from './components/Controls';
 import ModQueue from './components/ModQueue';
+import RejectedQueue from './components/RejectedQueue';
+import ConfirmationModal from './components/ConfirmationModal';
 import Stats from './components/Stats';
 
 function App() {
   const [sessions, setSessions] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState('pending');
+  const [showResetModal, setShowResetModal] = useState(false);
   const [settings, setSettings] = useState({
     displayMode: 'landscape',
     displayDuration: 12,
-    animationSpeed: 'normal',
-    fontSize: 'medium',
+    scrollSpeed: 'medium', // For portrait mode social wall
+    zoomDuration: 8, // For portrait mode zoom focus (seconds)
+    cardsPerRow: 3, // For portrait mode grid (2-4)
+    focusFrequency: 'normal', // For portrait mode focus frequency
+    // Branding settings
+    branding: {
+      backgroundType: 'gradient', // 'solid', 'gradient', 'image'
+      backgroundColor: '#f0f0f0',
+      gradientStart: '#faf5ff',
+      gradientEnd: '#fce7f3',
+      backgroundImage: '',
+      headerColorStart: '#a855f7',
+      headerColorEnd: '#ec4899',
+      headerFont: 'system-ui',
+      headerPadding: 'normal' // 'compact', 'normal', 'spacious'
+    }
   });
+
+  // Listen for display settings from Firebase
+  useEffect(() => {
+    const settingsRef = ref(database, 'displaySettings');
+    const unsub = onValue(settingsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setSettings(data);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Listen for connection status
   useEffect(() => {
@@ -49,15 +79,21 @@ function App() {
     await update(sessionRef, { status: 'ready_for_display' });
   };
 
-  // Reject/Delete note
+  // Reject note (change status to rejected)
   const rejectNote = async (sessionId) => {
     const sessionRef = ref(database, `sessions/${sessionId}`);
-    await remove(sessionRef);
+    await update(sessionRef, { status: 'rejected' });
   };
 
-  // Remove note from display (delete from Firebase)
-  const removeNote = async (sessionId) => {
-    if (confirm('Are you sure you want to remove this note?')) {
+  // Restore note (change from rejected back to pending)
+  const restoreNote = async (sessionId) => {
+    const sessionRef = ref(database, `sessions/${sessionId}`);
+    await update(sessionRef, { status: 'pending' });
+  };
+
+  // Delete forever with easy confirmation
+  const deleteForever = async (sessionId) => {
+    if (confirm('Delete this note forever? This cannot be undone.')) {
       const sessionRef = ref(database, `sessions/${sessionId}`);
       await remove(sessionRef);
     }
@@ -69,7 +105,7 @@ function App() {
     await remove(sessionsRef);
   };
 
-  // Reset slideshow - send message to display to clear its array
+  // Reset slideshow with strict confirmation
   const resetSlideshow = () => {
     const displayWindow = window.open('', 'display');
     if (displayWindow) {
@@ -77,28 +113,14 @@ function App() {
     }
     // Also try posting to localhost:3000 directly
     window.postMessage({ type: 'RESET_SLIDESHOW' }, 'http://localhost:3000');
+    setShowResetModal(false);
   };
 
-  // Update settings and notify display
-  const updateSettings = (newSettings) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
-
-    // Send message to display window
-    const displayWindow = window.open('', 'display');
-    if (displayWindow) {
-      if (newSettings.displayMode) {
-        displayWindow.postMessage(
-          { type: 'DISPLAY_MODE', mode: newSettings.displayMode },
-          '*'
-        );
-      }
-      if (newSettings.displayDuration) {
-        displayWindow.postMessage(
-          { type: 'DISPLAY_DURATION', duration: newSettings.displayDuration },
-          '*'
-        );
-      }
-    }
+  // Update settings in Firebase
+  const updateSettings = async (newSettings) => {
+    const updatedSettings = { ...settings, ...newSettings };
+    const settingsRef = ref(database, 'displaySettings');
+    await update(settingsRef, updatedSettings);
   };
 
   // Open display window
@@ -141,6 +163,8 @@ function App() {
   };
 
   const pendingNotes = sessions.filter((s) => s.status === 'pending');
+  const liveNotes = sessions.filter((s) => s.status === 'ready_for_display' || s.status === 'displaying');
+  const rejectedNotes = sessions.filter((s) => s.status === 'rejected');
   const displayedToday = sessions.filter(
     (s) =>
       s.status === 'complete' &&
@@ -148,11 +172,11 @@ function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-bold">Thank You Notes - Host Panel</h1>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Thank You Notes - Host Panel</h1>
           <div className="flex items-center gap-4">
             <div
               className={`w-3 h-3 rounded-full ${
@@ -162,13 +186,13 @@ function App() {
             />
             <button
               onClick={createTestNotes}
-              className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors"
+              className="px-6 py-2 bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white rounded-lg font-medium transition-all shadow-md"
             >
               ✨ Create Test Notes
             </button>
             <button
               onClick={openDisplay}
-              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium transition-colors"
+              className="px-6 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-lg font-medium transition-all shadow-md"
             >
               Open Display
             </button>
@@ -178,32 +202,103 @@ function App() {
         {/* Stats */}
         <Stats
           totalSessions={sessions.length}
-          pendingCount={pendingNotes.length}
           displayedToday={displayedToday}
         />
 
-        {/* Main content grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-          {/* Left column - Dashboard & Controls */}
-          <div className="lg:col-span-2 space-y-6">
-            <Dashboard
-              sessions={sessions}
-              onApprove={approveNote}
-              onReject={rejectNote}
-              onRemove={removeNote}
-            />
-            <Controls settings={settings} updateSettings={updateSettings} onClearAll={clearAllNotes} onResetSlideshow={resetSlideshow} />
+        {/* Main content - Tab layout */}
+        <div className="space-y-6 mt-8">
+          {/* Tab Navigation */}
+          <div className="flex gap-3 bg-gradient-to-r from-slate-800 to-slate-700 p-2 rounded-xl shadow-2xl border border-slate-600">
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`flex-1 px-6 py-4 rounded-lg font-semibold transition-all shadow-md ${
+                activeTab === 'pending'
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-2 border-blue-400'
+                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-600 border-2 border-transparent'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">⏳</span>
+                <span>Pending ({pendingNotes.length})</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('live')}
+              className={`flex-1 px-6 py-4 rounded-lg font-semibold transition-all shadow-md ${
+                activeTab === 'live'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white border-2 border-green-400'
+                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-600 border-2 border-transparent'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">📺</span>
+                <span>Live ({liveNotes.length})</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('rejected')}
+              className={`flex-1 px-6 py-4 rounded-lg font-semibold transition-all shadow-md ${
+                activeTab === 'rejected'
+                  ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white border-2 border-red-400'
+                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-600 border-2 border-transparent'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">🚫</span>
+                <span>Rejected ({rejectedNotes.length})</span>
+              </div>
+            </button>
           </div>
 
-          {/* Right column - Moderation Queue */}
-          <div className="lg:col-span-1">
-            <ModQueue
-              pendingNotes={pendingNotes}
-              onApprove={approveNote}
-              onReject={rejectNote}
-            />
+          {/* Tab Content and Controls Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Tab Content - 2 columns */}
+            <div className="lg:col-span-2">
+              {activeTab === 'pending' && (
+                <Dashboard
+                  sessions={sessions}
+                  onApprove={approveNote}
+                  onReject={rejectNote}
+                  onDeleteForever={deleteForever}
+                />
+              )}
+              {activeTab === 'live' && (
+                <ModQueue
+                  liveNotes={liveNotes}
+                  onReject={rejectNote}
+                  onDeleteForever={deleteForever}
+                />
+              )}
+              {activeTab === 'rejected' && (
+                <RejectedQueue
+                  rejectedNotes={rejectedNotes}
+                  onRestore={restoreNote}
+                  onDeleteForever={deleteForever}
+                />
+              )}
+            </div>
+
+            {/* Controls - 1 column */}
+            <div className="lg:col-span-1">
+              <Controls
+                settings={settings}
+                updateSettings={updateSettings}
+                onClearAll={clearAllNotes}
+                onResetSlideshow={() => setShowResetModal(true)}
+              />
+            </div>
           </div>
         </div>
+
+        {/* Reset Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showResetModal}
+          onClose={() => setShowResetModal(false)}
+          onConfirm={resetSlideshow}
+          title="⚠️ Reset Slideshow"
+          message="This will reset the entire slideshow and restart from the beginning. This action cannot be undone."
+          confirmText="RESET"
+        />
       </div>
     </div>
   );

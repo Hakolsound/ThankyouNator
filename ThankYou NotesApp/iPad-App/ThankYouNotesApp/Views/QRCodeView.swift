@@ -8,114 +8,134 @@ struct QRCodeView: View {
     @State private var isWaitingForUpload = false
 
     var body: some View {
-        ZStack {
-        VStack(spacing: 30) {
-            // Header
-            HStack {
-                Text("📸 Add a Photo")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(.orange)
+        GeometryReader { geometry in
+            let isLargeScreen = geometry.size.width > 1000
+            let toolbarWidth: CGFloat = isLargeScreen ? 180 : 140
+            let availableWidth = geometry.size.width - toolbarWidth
+            let horizontalMargin: CGFloat = isLargeScreen ? 60 : 40
+            let minModalWidth: CGFloat = isLargeScreen ? 600 : 500
+            let modalWidth: CGFloat = max(minModalWidth, availableWidth - (horizontalMargin * 2))
+
+            HStack(spacing: 0) {
+                Spacer()
+                    .frame(width: toolbarWidth)
 
                 Spacer()
+                    .frame(width: horizontalMargin)
 
-                Button(action: {
-                    isPresented = false
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 32))
-                        .foregroundColor(.gray)
-                }
-            }
-            .padding(.horizontal, 40)
+                VStack(spacing: isLargeScreen ? 24 : 20) {
+                    // Close button only
+                    HStack {
+                        Spacer()
 
-            // Instructions
-            VStack(spacing: 15) {
-                Text("Scan with your phone")
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundColor(.primary)
-
-                Text("Take a photo and add it to your note")
-                    .font(.system(size: 24))
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 40)
-
-            // QR Code
-            ZStack {
-                if let qrImage = generateQRCode(from: uploadURL) {
-                    Image(uiImage: qrImage)
-                        .interpolation(.none)
-                        .resizable()
-                        .frame(width: 400, height: 400)
-                        .background(Color.white)
-                        .cornerRadius(24)
-                        .shadow(color: .orange.opacity(0.3), radius: 20, y: 10)
-                        .padding(40)
-                        .opacity(isWaitingForUpload ? 0.3 : 1.0)
-                }
-
-                // Waiting for upload indicator
-                if isWaitingForUpload {
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(2.0)
-                            .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.8, green: 0.3, blue: 0.9)))
-                        Text("Waiting for photo...")
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(Color(red: 0.8, green: 0.3, blue: 0.9))
-                    }
-                    .frame(width: 400, height: 400)
-                }
-            }
-            .onTapGesture {
-                // Toggle waiting state for visual feedback
-                if !isWaitingForUpload {
-                    withAnimation {
-                        isWaitingForUpload = true
-                    }
-                    // Reset after 3 seconds if no upload
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        withAnimation {
-                            isWaitingForUpload = false
+                        Button(action: {
+                            isPresented = false
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: isLargeScreen ? 32 : 28))
+                                .foregroundColor(.gray)
                         }
                     }
+                    .padding(.horizontal, isLargeScreen ? 24 : 20)
+                    .padding(.top, 10)
+
+                    // Cool Chrome-style instructions
+                    VStack(spacing: isLargeScreen ? 16 : 12) {
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: isLargeScreen ? 32 : 28, height: isLargeScreen ? 32 : 28)
+                                .overlay(
+                                    Text("1")
+                                        .font(.system(size: isLargeScreen ? 16 : 14, weight: .bold))
+                                        .foregroundColor(.white)
+                                )
+
+                            Text("Scan the code with your phone")
+                                .font(.system(size: isLargeScreen ? 20 : 18, weight: .medium))
+                                .foregroundColor(.primary)
+
+                            Spacer()
+                        }
+
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: isLargeScreen ? 32 : 28, height: isLargeScreen ? 32 : 28)
+                                .overlay(
+                                    Text("2")
+                                        .font(.system(size: isLargeScreen ? 16 : 14, weight: .bold))
+                                        .foregroundColor(.white)
+                                )
+
+                            Text("Upload an epic photo")
+                                .font(.system(size: isLargeScreen ? 20 : 18, weight: .medium))
+                                .foregroundColor(.primary)
+
+                            Spacer()
+                        }
+                    }
+                    .padding(.horizontal, isLargeScreen ? 24 : 20)
+
+                    // QR Code
+                    ZStack {
+                        if let qrImage = generateQRCode(from: uploadURL) {
+                            Image(uiImage: qrImage)
+                                .interpolation(.none)
+                                .resizable()
+                                .frame(width: isLargeScreen ? 320 : 280, height: isLargeScreen ? 320 : 280)
+                                .padding(isLargeScreen ? 24 : 20)
+                                .background(Color.white)
+                                .cornerRadius(16)
+                                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
+                                .opacity(isWaitingForUpload ? 0.3 : 1.0)
+                        }
+
+                        // Waiting indicator
+                        if isWaitingForUpload {
+                            VStack(spacing: 16) {
+                                ProgressView()
+                                    .scaleEffect(1.5)
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                                Text("Waiting for photo...")
+                                    .font(.system(size: isLargeScreen ? 18 : 16, weight: .medium))
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                    .frame(height: isLargeScreen ? 380 : 330)
+
+                    // URL display
+                    Text(uploadURL)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, isLargeScreen ? 24 : 20)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    // Close button
+                    Button(action: {
+                        isPresented = false
+                    }) {
+                        Text("Close")
+                            .font(.system(size: isLargeScreen ? 20 : 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, isLargeScreen ? 16 : 14)
+                            .background(Color.gray.opacity(0.7))
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal, isLargeScreen ? 24 : 20)
                 }
+                .frame(width: modalWidth)
+                .padding(.vertical, isLargeScreen ? 24 : 20)
+                .background(Color(white: 0.96))
+                .cornerRadius(20)
+                .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+
+                Spacer()
+                    .frame(width: horizontalMargin)
             }
-
-            // URL display (for debugging)
-            Text(uploadURL)
-                .font(.system(size: 14))
-                .foregroundColor(.gray)
-                .padding(.horizontal, 40)
-                .lineLimit(2)
-                .truncationMode(.middle)
-
-            Spacer()
-
-            // Close button
-            Button(action: {
-                isPresented = false
-            }) {
-                Text("Close")
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 25)
-                    .background(Color.gray.opacity(0.15))
-                    .cornerRadius(20)
-            }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
-        }
-        .background(
-            LinearGradient(
-                colors: [Color.white, Color(red: 0.95, green: 0.92, blue: 0.98)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
-        .cornerRadius(24)
         }
     }
 
