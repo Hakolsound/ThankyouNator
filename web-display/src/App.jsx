@@ -19,11 +19,14 @@ function App() {
     backgroundColor: '#f0f0f0',
     gradientStart: '#faf5ff',
     gradientEnd: '#fce7f3',
+    gradientAngle: 135,
     backgroundImage: '',
     headerColorStart: '#a855f7',
     headerColorEnd: '#ec4899',
+    headerGradientAngle: 90,
     headerFont: 'system-ui',
-    headerPadding: 'normal'
+    headerPadding: 'normal',
+    headerFontSize: 'native'
   });
   const [allNotes, setAllNotes] = useState([]); // Accumulated notes throughout event
   const [processedIds, setProcessedIds] = useState(new Set()); // Track which notes we've shown
@@ -40,7 +43,12 @@ function App() {
         if (data.zoomDuration) setZoomDuration(data.zoomDuration * 1000);
         if (data.cardsPerRow) setCardsPerRow(data.cardsPerRow);
         if (data.focusFrequency) setFocusFrequency(data.focusFrequency);
-        if (data.branding) setBranding(data.branding);
+        if (data.branding) {
+          setBranding(prev => ({
+            ...prev,
+            ...data.branding
+          }));
+        }
       }
     });
     return () => unsub();
@@ -101,7 +109,7 @@ function App() {
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="w-screen h-screen overflow-hidden">
       {/* Connection Status */}
       <ConnectionStatus isConnected={isConnected} lastUpdate={lastUpdate} />
 

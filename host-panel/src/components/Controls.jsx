@@ -18,6 +18,12 @@ const Controls = ({ settings, updateSettings, onClearAll, onResetSlideshow }) =>
     spacious: { py: '1.5rem', label: 'Spacious' }
   };
 
+  const headerFontSizeValues = {
+    small: { label: 'Small' },
+    native: { label: 'Native' },
+    big: { label: 'Big' }
+  };
+
   const fontOptions = [
     { value: 'system-ui', label: 'System' },
     { value: 'Arial', label: 'Arial' },
@@ -352,13 +358,27 @@ const Controls = ({ settings, updateSettings, onClearAll, onResetSlideshow }) =>
                     />
                   </div>
                 </div>
+                {/* Gradient Angle */}
+                <div>
+                  <label className="block text-sm font-semibold mb-3 text-gray-300">
+                    Gradient Angle: {settings.branding?.gradientAngle || 135}°
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    value={settings.branding?.gradientAngle || 135}
+                    onChange={(e) => updateBranding({ gradientAngle: parseInt(e.target.value) })}
+                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                </div>
                 {/* Preview */}
                 <div>
                   <label className="block text-sm font-semibold mb-3 text-gray-300">Preview</label>
                   <div
                     className="h-20 rounded-lg border-2 border-slate-600"
                     style={{
-                      background: `linear-gradient(to br, ${settings.branding?.gradientStart || '#faf5ff'}, ${settings.branding?.gradientEnd || '#fce7f3'})`
+                      background: `linear-gradient(${settings.branding?.gradientAngle || 135}deg, ${settings.branding?.gradientStart || '#faf5ff'}, ${settings.branding?.gradientEnd || '#fce7f3'})`
                     }}
                   />
                 </div>
@@ -417,13 +437,27 @@ const Controls = ({ settings, updateSettings, onClearAll, onResetSlideshow }) =>
                     />
                   </div>
                 </div>
+                {/* Header Gradient Angle */}
+                <div>
+                  <label className="block text-xs font-medium mb-2 text-gray-400">
+                    Gradient Angle: {settings.branding?.headerGradientAngle || 90}°
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    value={settings.branding?.headerGradientAngle || 90}
+                    onChange={(e) => updateBranding({ headerGradientAngle: parseInt(e.target.value) })}
+                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                </div>
                 {/* Preview */}
                 <div>
                   <label className="block text-xs font-medium mb-2 text-gray-400">Preview</label>
                   <div
                     className="h-16 rounded-lg border-2 border-slate-600 flex items-center justify-center"
                     style={{
-                      background: `linear-gradient(to right, ${settings.branding?.headerColorStart || '#a855f7'}, ${settings.branding?.headerColorEnd || '#ec4899'})`
+                      background: `linear-gradient(${settings.branding?.headerGradientAngle || 90}deg, ${settings.branding?.headerColorStart || '#a855f7'}, ${settings.branding?.headerColorEnd || '#ec4899'})`
                     }}
                   >
                     <span className="text-white font-bold text-lg">Sample Header</span>
@@ -458,6 +492,26 @@ const Controls = ({ settings, updateSettings, onClearAll, onResetSlideshow }) =>
                     onClick={() => updateBranding({ headerPadding: key })}
                     className={`px-4 py-3 rounded-lg font-medium transition-all shadow-md ${
                       settings.branding?.headerPadding === key
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-2 border-purple-400'
+                        : 'bg-slate-700 text-gray-300 hover:bg-slate-600 border-2 border-slate-600'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Header Font Size */}
+            <div>
+              <label className="block text-sm font-semibold mb-3 text-gray-300">Header Font Size</label>
+              <div className="grid grid-cols-3 gap-3">
+                {Object.entries(headerFontSizeValues).map(([key, { label }]) => (
+                  <button
+                    key={key}
+                    onClick={() => updateBranding({ headerFontSize: key })}
+                    className={`px-4 py-3 rounded-lg font-medium transition-all shadow-md ${
+                      settings.branding?.headerFontSize === key
                         ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-2 border-purple-400'
                         : 'bg-slate-700 text-gray-300 hover:bg-slate-600 border-2 border-slate-600'
                     }`}

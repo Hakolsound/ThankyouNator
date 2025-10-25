@@ -12,11 +12,14 @@ const PortraitMode = ({
     backgroundColor: '#f0f0f0',
     gradientStart: '#faf5ff',
     gradientEnd: '#fce7f3',
+    gradientAngle: 135,
     backgroundImage: '',
     headerColorStart: '#a855f7',
     headerColorEnd: '#ec4899',
+    headerGradientAngle: 90,
     headerFont: 'system-ui',
-    headerPadding: 'normal'
+    headerPadding: 'normal',
+    headerFontSize: 'native'
   }
 }) => {
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -36,10 +39,8 @@ const PortraitMode = ({
   const layoutPattern = useMemo(() => {
     const pattern = [];
     const sizeWeights = {
-      '1x1': 0.05,    // 5% - rare, interleave look
-      '1x2': 0.65,    // 65% - most common, native aspect
-      '2x3': 0.20,    // 20% - medium emphasis
-      '2x4': 0.10     // 10% - rare hero highlight
+      '1x1': 0.80,    // 80% - most common
+      '2x3': 0.20     // 20% - medium emphasis
     };
 
     let currentColumn = 0;
@@ -54,19 +55,13 @@ const PortraitMode = ({
       if (rand < sizeWeights['1x1']) {
         size = '1x1';
         colSpan = 1;
-      } else if (rand < sizeWeights['1x1'] + sizeWeights['1x2']) {
-        size = '1x2';
-        colSpan = 1;
-      } else if (rand < sizeWeights['1x1'] + sizeWeights['1x2'] + sizeWeights['2x3']) {
-        size = '2x3';
-        colSpan = 2;
       } else {
-        size = '2x4';
+        size = '2x3';
         colSpan = 2;
       }
 
-      // Add spacer occasionally for sporadic look (10% chance)
-      if (Math.random() < 0.1 && currentColumn < cardsPerRow - 1) {
+      // Add spacer occasionally for sporadic look (25% chance for more shuffled layout)
+      if (Math.random() < 0.25 && currentColumn < cardsPerRow - 1) {
         pattern.push({ id: `spacer-${slotIndex}`, size: 'spacer', isSpacer: true });
         currentColumn++;
       }
@@ -270,13 +265,9 @@ const PortraitMode = ({
 
     switch (size) {
       case '1x1':
-        return `${baseClasses} col-span-1 row-span-2`; // Taller for square crop
-      case '1x2':
-        return `${baseClasses} col-span-1 row-span-3`; // Taller for native aspect
+        return `${baseClasses} col-span-1 row-span-3`; // 3:4 ratio, 1 column, 3 rows
       case '2x3':
-        return `${baseClasses} col-span-2 row-span-5`; // Much taller for emphasis
-      case '2x4':
-        return `${baseClasses} col-span-2 row-span-7`; // Extra tall hero
+        return `${baseClasses} col-span-2 row-span-5`; // Fixed height, 2 columns, 5 rows
       default:
         return `${baseClasses} col-span-1 row-span-3`;
     }
@@ -303,33 +294,111 @@ const PortraitMode = ({
     }
   };
 
+  // Get focused header padding (larger scale for focus view)
+  const getFocusedHeaderPadding = () => {
+    const paddingMultiplier = {
+      compact: 0.75,
+      normal: 1.25,
+      spacious: 2
+    }[branding.headerPadding] || 1.25;
+
+    return {
+      paddingLeft: '2rem',
+      paddingRight: '2rem',
+      paddingTop: `${1.25 * paddingMultiplier}rem`,
+      paddingBottom: `${1.25 * paddingMultiplier}rem`
+    };
+  };
+
+  // Get header font size based on card size and branding settings
+  const getHeaderFontSize = (size, element) => {
+    const sizeMultiplier = {
+      small: 0.85,
+      native: 1,
+      big: 1.2
+    }[branding.headerFontSize] || 1;
+
+    // Base sizes for different card sizes
+    let baseTitleSize, baseSubtitleSize;
+    switch (size) {
+      case '1x1':
+        baseTitleSize = element === 'title' ? 0.75 : 0.75; // text-xs
+        baseSubtitleSize = 0.75; // text-xs
+        break;
+      case '1x2':
+        baseTitleSize = element === 'title' ? 0.875 : 0.875; // text-sm
+        baseSubtitleSize = 0.875; // text-sm
+        break;
+      case '2x3':
+      case '2x4':
+        baseTitleSize = element === 'title' ? 1.125 : 1.125; // text-lg
+        baseSubtitleSize = 1; // text-base
+        break;
+      default:
+        baseTitleSize = element === 'title' ? 0.875 : 0.875; // text-sm
+        baseSubtitleSize = 0.875; // text-sm
+    }
+
+    const finalSize = element === 'title' ? baseTitleSize * sizeMultiplier : baseSubtitleSize * sizeMultiplier;
+    return `${finalSize}rem`;
+  };
+
+  // Get focused header font size (larger scale for focus view)
+  const getFocusedHeaderFontSize = (element) => {
+    const sizeMultiplier = {
+      small: 0.85,
+      native: 1,
+      big: 1.2
+    }[branding.headerFontSize] || 1;
+
+    const baseSize = element === 'title' ? 1.875 : 1.25; // text-3xl : text-xl
+    return `${baseSize * sizeMultiplier}rem`;
+  };
+
   // Get background style based on branding settings
   const getBackgroundStyle = () => {
+    const angle = branding.gradientAngle || 135;
     switch (branding.backgroundType) {
       case 'solid':
-        return { backgroundColor: branding.backgroundColor };
+        return { backgroundImage: 'none', backgroundColor: branding.backgroundColor };
       case 'gradient':
-        return { background: `linear-gradient(to br, ${branding.gradientStart}, ${branding.gradientEnd})` };
+        return {
+          backgroundImage: `linear-gradient(${angle}deg, ${branding.gradientStart}, ${branding.gradientEnd})`,
+          backgroundColor: branding.gradientStart // Fallback color to prevent transparency
+        };
       case 'image':
         return branding.backgroundImage
-          ? { backgroundImage: `url(${branding.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-          : { background: `linear-gradient(to br, ${branding.gradientStart}, ${branding.gradientEnd})` };
+          ? { backgroundImage: `url(${branding.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#000' }
+          : {
+              backgroundImage: `linear-gradient(${angle}deg, ${branding.gradientStart}, ${branding.gradientEnd})`,
+              backgroundColor: branding.gradientStart
+            };
       default:
-        return { background: `linear-gradient(to br, ${branding.gradientStart}, ${branding.gradientEnd})` };
+        return {
+          backgroundImage: `linear-gradient(${angle}deg, ${branding.gradientStart}, ${branding.gradientEnd})`,
+          backgroundColor: branding.gradientStart
+        };
     }
   };
 
   // Get header gradient style
   const getHeaderStyle = () => {
+    const angle = branding.headerGradientAngle || 90;
     return {
-      background: `linear-gradient(to right, ${branding.headerColorStart}, ${branding.headerColorEnd})`,
+      backgroundImage: `linear-gradient(${angle}deg, ${branding.headerColorStart}, ${branding.headerColorEnd})`,
+      backgroundColor: 'transparent',
       fontFamily: branding.headerFont
     };
   };
 
-  // All images should cover full width, maintaining aspect ratio with height adjustment
+  // Get image fit based on card size
   const getImageFit = (size) => {
-    return 'object-cover'; // Always fill width, card height adjusts to accommodate
+    // Native aspect ratio sizes: show entire note with no crop
+    if (size === '1x2' || size === '2x4') {
+      return 'object-contain';
+    }
+    // Fixed sizes: crop to fill the card dimensions
+    return 'object-cover';
   };
 
   if (notes.length === 0) {
@@ -379,20 +448,20 @@ const PortraitMode = ({
             >
               {/* Card Header */}
               <div className="flex-shrink-0" style={{ ...getHeaderStyle(), ...getHeaderPadding(size) }}>
-                <h3 className={`font-bold text-white ${size === '1x1' ? 'text-xs' : size === '2x3' || size === '2x4' ? 'text-lg' : 'text-sm'}`}>
+                <h3 className="font-bold text-white" style={{ fontSize: getHeaderFontSize(size, 'title') }}>
                   To: {note.iPad_input?.recipient || 'Unknown'}
                 </h3>
-                <p className={`text-white/80 ${size === '1x1' ? 'text-xs' : size === '2x3' || size === '2x4' ? 'text-base' : 'text-sm'}`}>
+                <p className="text-white/80" style={{ fontSize: getHeaderFontSize(size, 'subtitle') }}>
                   From: {note.iPad_input?.sender || 'Unknown'}
                 </p>
               </div>
 
               {/* Card Image */}
-              <div className="relative flex-1 w-full overflow-hidden bg-gray-50">
+              <div className="relative w-full flex-1 overflow-hidden bg-gray-50">
                 <img
                   src={`data:image/png;base64,${note.iPad_input?.drawingImage}`}
                   alt="Thank you note"
-                  className={`w-full h-full ${getImageFit(size)}`}
+                  className="w-full h-full object-cover"
                   loading="lazy"
                 />
               </div>
@@ -417,8 +486,8 @@ const PortraitMode = ({
             justifyContent: 'center',
             padding: '2rem',
             backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
+            backdropFilter: 'blur(7px)',
+            WebkitBackdropFilter: 'blur(7px)',
             animation: isExiting ? 'fadeOutBackground 0.2s ease-out' : 'fadeInBackground 0.6s ease-out'
           }}
         >
@@ -446,14 +515,14 @@ const PortraitMode = ({
               <div
                 style={{
                   ...getHeaderStyle(),
-                  padding: '2rem',
+                  ...getFocusedHeaderPadding(),
                   flexShrink: 0
                 }}
               >
-                <h3 style={{ fontWeight: 'bold', color: 'white', fontSize: '1.875rem', margin: 0 }}>
+                <h3 style={{ fontWeight: 'bold', color: 'white', fontSize: getFocusedHeaderFontSize('title'), margin: 0 }}>
                   To: {cardContent[focusedIndex].iPad_input?.recipient || 'Unknown'}
                 </h3>
-                <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '1.25rem', marginTop: '0.5rem', marginBottom: 0 }}>
+                <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: getFocusedHeaderFontSize('subtitle'), marginTop: '0.5rem', marginBottom: 0 }}>
                   From: {cardContent[focusedIndex].iPad_input?.sender || 'Unknown'}
                 </p>
               </div>
@@ -497,16 +566,16 @@ const PortraitMode = ({
           }
           100% {
             opacity: 1;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(7px);
+            -webkit-backdrop-filter: blur(7px);
           }
         }
 
         @keyframes fadeOutBackground {
           0% {
             opacity: 1;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(7px);
+            -webkit-backdrop-filter: blur(7px);
           }
           100% {
             opacity: 0;

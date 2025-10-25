@@ -25,11 +25,14 @@ function App() {
       backgroundColor: '#f0f0f0',
       gradientStart: '#faf5ff',
       gradientEnd: '#fce7f3',
+      gradientAngle: 135, // 0-360 degrees
       backgroundImage: '',
       headerColorStart: '#a855f7',
       headerColorEnd: '#ec4899',
+      headerGradientAngle: 90, // 0-360 degrees (90 = left to right)
       headerFont: 'system-ui',
-      headerPadding: 'normal' // 'compact', 'normal', 'spacious'
+      headerPadding: 'normal', // 'compact', 'normal', 'spacious'
+      headerFontSize: 'native' // 'small', 'native', 'big'
     }
   });
 
@@ -39,7 +42,14 @@ function App() {
     const unsub = onValue(settingsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setSettings(data);
+        setSettings(prev => ({
+          ...prev,
+          ...data,
+          branding: {
+            ...prev.branding,
+            ...(data.branding || {})
+          }
+        }));
       }
     });
     return () => unsub();
