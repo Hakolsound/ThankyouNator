@@ -45,6 +45,7 @@ const PortraitMode = ({
 
     let currentColumn = 0;
     let slotIndex = 0;
+    let rowStartColumn = -1; // Track where last card started in the row
 
     // Generate 60 cards with sporadic placement using spacers
     while (slotIndex < TOTAL_CARDS) {
@@ -60,9 +61,11 @@ const PortraitMode = ({
         colSpan = 2;
       }
 
-      // Add spacer occasionally for sporadic look (25% chance for more shuffled layout)
-      if (Math.random() < 0.25 && currentColumn < cardsPerRow - 1) {
-        pattern.push({ id: `spacer-${slotIndex}`, size: 'spacer', isSpacer: true });
+      // Add spacer with higher probability if we're about to place a card in the same column as previous row
+      const shouldAddSpacer = Math.random() < 0.45 || (currentColumn === rowStartColumn && Math.random() < 0.7);
+
+      if (shouldAddSpacer && currentColumn < cardsPerRow - 1) {
+        pattern.push({ id: `spacer-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
         currentColumn++;
       }
 
@@ -73,6 +76,12 @@ const PortraitMode = ({
           currentColumn++;
         }
         currentColumn = 0;
+        rowStartColumn = -1; // Reset for new row
+      }
+
+      // Track the starting column of this card if it's the first in the row
+      if (rowStartColumn === -1) {
+        rowStartColumn = currentColumn;
       }
 
       // Add the card
@@ -82,94 +91,54 @@ const PortraitMode = ({
       // Reset column counter when row is complete
       if (currentColumn >= cardsPerRow) {
         currentColumn = 0;
+        rowStartColumn = -1; // Reset for new row
       }
 
       slotIndex++;
     }
 
-    console.log('[PortraitMode] Generated sporadic layout:', {
-      total: pattern.length,
-      cards: slotIndex,
-      spacers: pattern.filter(p => p.isSpacer).length,
-      sizes: pattern.filter(p => !p.isSpacer).reduce((acc, p) => ({ ...acc, [p.size]: (acc[p.size] || 0) + 1 }), {})
-    });
-
     return pattern;
   }, [cardsPerRow]); // Regenerate when cardsPerRow changes
 
-  // Map notes to card slots - content only, not positions (skip spacers)
+  // Assign notes to card slots - simple, no viewport tracking
   const [cardContent, setCardContent] = useState({});
+  const contentHeightRef = useRef(0);
 
-  // Initialize card content when layoutPattern or notes change
+  // Simple content assignment - no viewport tracking
+  // New notes will appear naturally on next loop cycle
   useEffect(() => {
     if (notes.length === 0) {
       setCardContent({});
       return;
     }
 
-    const content = {};
-    const cardSlots = layoutPattern.filter(slot => !slot.isSpacer);
-    cardSlots.forEach((slot, idx) => {
-      content[slot.id] = notes[idx % notes.length];
-    });
-    setCardContent(content);
-  }, [notes, layoutPattern]);
-
-  // Track which cards are off-screen for content rotation
-  const getVisibleRange = useCallback(() => {
-    const viewportHeight = window.innerHeight;
-    const rowHeight = 200; // Approximate
-    const initialOffset = viewportHeight;
-    const actualScroll = scrollPosition - initialOffset;
-
-    const topBound = actualScroll - rowHeight * 2;
-    const bottomBound = actualScroll + viewportHeight + rowHeight * 2;
-
-    return { topBound, bottomBound };
-  }, [scrollPosition]);
-
-  // Rotate content in off-screen cards
-  useEffect(() => {
-    if (notes.length === 0) return;
-
-    const rotationInterval = displayDuration || 12000;
-    const now = Date.now();
-
-    if (now - lastRotationRef.current < rotationInterval) return;
-
-    const { topBound, bottomBound } = getVisibleRange();
-    const rowHeight = 200;
-
-    // Find off-screen cards (skip spacers)
-    const offScreenSlots = layoutPattern.filter((slot, idx) => {
-      if (slot.isSpacer) return false;
-      const row = Math.floor(idx / cardsPerRow);
-      const estimatedY = row * rowHeight;
-      return estimatedY < topBound || estimatedY > bottomBound;
-    });
-
-    if (offScreenSlots.length === 0) return;
-
-    // Rotate content in off-screen cards only
+    // Only initialize if we don't have content yet
     setCardContent(prev => {
-      const newContent = { ...prev };
-      const unusedNotes = notes.filter(note =>
-        !Object.values(prev).some(card => card?.id === note.id)
-      );
+      if (Object.keys(prev).length > 0) {
+        return prev; // Keep existing content
+      }
 
-      offScreenSlots.forEach(slot => {
-        if (unusedNotes.length > 0) {
-          const randomNote = unusedNotes[Math.floor(Math.random() * unusedNotes.length)];
-          newContent[slot.id] = randomNote;
-          unusedNotes.splice(unusedNotes.indexOf(randomNote), 1);
-        }
+      // Initial load - shuffle and assign
+      const cardSlots = layoutPattern.filter(slot => !slot.isSpacer);
+      const content = {};
+      const shuffledNotes = [...notes].sort(() => Math.random() - 0.5);
+
+      cardSlots.forEach((slot, idx) => {
+        content[slot.id] = shuffledNotes[idx % shuffledNotes.length];
       });
 
-      return newContent;
+      return content;
     });
+  }, [layoutPattern, notes.length]); // Only for initial load
 
-    lastRotationRef.current = now;
-  }, [scrollPosition, notes, displayDuration, layoutPattern, cardsPerRow, getVisibleRange]);
+  // Measure content height once when layout changes
+  useEffect(() => {
+    if (gridRef.current) {
+      const height = gridRef.current.getBoundingClientRect().height;
+      contentHeightRef.current = height;
+    }
+  }, [layoutPattern, notes.length]);
+
 
   // Auto-scroll speed mapping
   const scrollSpeedValue = useMemo(() => {
@@ -192,7 +161,7 @@ const PortraitMode = ({
     return frequencies[focusFrequency] || 1;
   }, [focusFrequency]);
 
-  // Smooth scroll animation using RAF with infinite loop
+  // Auto-scroll with infinite loop
   useEffect(() => {
     if (notes.length === 0) {
       return;
@@ -207,31 +176,25 @@ const PortraitMode = ({
 
       setScrollPosition(prev => {
         const newPosition = prev + scrollDelta;
-
-        // Calculate approximate content height based on layout
-        // Average row height ~100px, with ~20 rows for 60 cards
-        const contentHeight = 2500; // Approximate total height
+        const contentHeight = contentHeightRef.current || 2500;
         const viewportHeight = window.innerHeight;
 
-        // When we've scrolled past all content, loop back to start
+        // Loop when we've scrolled past the entire content
         if (newPosition > contentHeight + viewportHeight) {
-          console.log('[PortraitMode] Looping: Resetting scroll and shuffling content');
-
-          // Shuffle card content for next loop
-          setCardContent(prev => {
-            const newContent = {};
+          // Shuffle all content for next cycle
+          setCardContent(() => {
             const cardSlots = layoutPattern.filter(slot => !slot.isSpacer);
+            const content = {};
             const shuffledNotes = [...notes].sort(() => Math.random() - 0.5);
 
             cardSlots.forEach((slot, idx) => {
-              newContent[slot.id] = shuffledNotes[idx % shuffledNotes.length];
+              content[slot.id] = shuffledNotes[idx % shuffledNotes.length];
             });
 
-            return newContent;
+            return content;
           });
 
-          // Reset scroll position to beginning
-          return 0;
+          return 0; // Reset to beginning
         }
 
         return newPosition;
@@ -247,7 +210,7 @@ const PortraitMode = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [scrollSpeedValue, notes.length, notes, layoutPattern]);
+  }, [scrollSpeedValue, notes, layoutPattern]);
 
   // Random focus effect - show focused card in overlay
   useEffect(() => {
@@ -449,22 +412,16 @@ const PortraitMode = ({
     >
       <div
         ref={gridRef}
-        className={`grid gap-4 p-8 auto-rows-[100px] transition-transform duration-100 ease-linear`}
+        className="grid gap-4 p-8 auto-rows-[100px]"
         style={{
+          gridTemplateColumns: `repeat(${cardsPerRow}, 1fr)`,
           transform: `translateY(-${scrollPosition}px) translateZ(0)`,
-          willChange: 'transform',
-          gridTemplateColumns: `repeat(${cardsPerRow}, 1fr)`
+          willChange: 'transform'
         }}
       >
-        {layoutPattern.map((slot, index) => {
-          // Render spacer as empty div
+        {layoutPattern.map((slot) => {
           if (slot.isSpacer) {
-            return (
-              <div
-                key={slot.id}
-                className="col-span-1 row-span-1"
-              />
-            );
+            return <div key={slot.id} className="col-span-1 row-span-1" />;
           }
 
           const note = cardContent[slot.id];
@@ -475,6 +432,7 @@ const PortraitMode = ({
           return (
             <div
               key={slot.id}
+              data-slot-id={slot.id}
               className={`${getCardClasses(size)} flex flex-col`}
             >
               {/* Card Header */}
@@ -492,7 +450,7 @@ const PortraitMode = ({
                 <img
                   src={`data:image/png;base64,${note.iPad_input?.drawingImage}`}
                   alt="Thank you note"
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full ${getImageFit(size)}`}
                   loading="lazy"
                 />
               </div>
