@@ -192,7 +192,7 @@ const PortraitMode = ({
     return frequencies[focusFrequency] || 1;
   }, [focusFrequency]);
 
-  // Smooth scroll animation using RAF
+  // Smooth scroll animation using RAF with infinite loop
   useEffect(() => {
     if (notes.length === 0) {
       return;
@@ -204,7 +204,38 @@ const PortraitMode = ({
       lastScrollTimeRef.current = now;
 
       const scrollDelta = scrollSpeedValue * delta / 16.67;
-      setScrollPosition(prev => prev + scrollDelta);
+
+      setScrollPosition(prev => {
+        const newPosition = prev + scrollDelta;
+
+        // Calculate approximate content height based on layout
+        // Average row height ~100px, with ~20 rows for 60 cards
+        const contentHeight = 2500; // Approximate total height
+        const viewportHeight = window.innerHeight;
+
+        // When we've scrolled past all content, loop back to start
+        if (newPosition > contentHeight + viewportHeight) {
+          console.log('[PortraitMode] Looping: Resetting scroll and shuffling content');
+
+          // Shuffle card content for next loop
+          setCardContent(prev => {
+            const newContent = {};
+            const cardSlots = layoutPattern.filter(slot => !slot.isSpacer);
+            const shuffledNotes = [...notes].sort(() => Math.random() - 0.5);
+
+            cardSlots.forEach((slot, idx) => {
+              newContent[slot.id] = shuffledNotes[idx % shuffledNotes.length];
+            });
+
+            return newContent;
+          });
+
+          // Reset scroll position to beginning
+          return 0;
+        }
+
+        return newPosition;
+      });
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -216,7 +247,7 @@ const PortraitMode = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [scrollSpeedValue, notes.length]);
+  }, [scrollSpeedValue, notes.length, notes, layoutPattern]);
 
   // Random focus effect - show focused card in overlay
   useEffect(() => {
@@ -485,7 +516,7 @@ const PortraitMode = ({
             alignItems: 'center',
             justifyContent: 'center',
             padding: '2rem',
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
             backdropFilter: 'blur(7px)',
             WebkitBackdropFilter: 'blur(7px)',
             animation: isExiting ? 'fadeOutBackground 0.2s ease-out' : 'fadeInBackground 0.6s ease-out'
