@@ -88,7 +88,7 @@ const RejectedQueue = ({ rejectedNotes, onRestore, onDeleteForever }) => {
         </span>
       </div>
 
-      <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+      <div>
         {rejectedNotes.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🗑️</div>

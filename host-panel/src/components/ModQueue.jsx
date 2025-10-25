@@ -89,7 +89,7 @@ const ModQueue = ({ liveNotes, onReject, onDeleteForever }) => {
       </div>
 
       {/* Dynamic height to fit all notes */}
-      <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+      <div>
         {liveNotes.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📺</div>
