@@ -38,65 +38,116 @@ const PortraitMode = ({
   // Generate sporadic layout with spacers for visual interest
   const layoutPattern = useMemo(() => {
     const pattern = [];
-    const sizeWeights = {
-      '1x1': 0.80,    // 80% - most common
-      '2x3': 0.20     // 20% - medium emphasis
+
+    // Use seeded random for consistent layout
+    let seed = 12345;
+    const seededRandom = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
     };
+
+    // Pre-determine big card positions with enforced spacing (28% = 17 out of 60)
+    // Distribute them evenly to prevent clustering
+    const totalBigCards = Math.floor(TOTAL_CARDS * 0.28); // 17 cards
+    const bigCardIndices = [];
+    const minGap = Math.floor(TOTAL_CARDS / totalBigCards) - 1; // Minimum gap between big cards
+
+    for (let i = 0; i < totalBigCards; i++) {
+      // Calculate base position with even spacing
+      const basePos = Math.floor((TOTAL_CARDS / totalBigCards) * i);
+      // Add small random offset for natural feel
+      const offset = Math.floor(seededRandom() * minGap);
+      const position = Math.min(basePos + offset, TOTAL_CARDS - 1);
+      bigCardIndices.push(position);
+    }
+
+    const bigCardSet = new Set(bigCardIndices);
+    console.log(`Big card indices (${bigCardIndices.length}):`, bigCardIndices);
 
     let currentColumn = 0;
     let slotIndex = 0;
-    let rowStartColumn = -1; // Track where last card started in the row
+    let bigCardCount = 0; // Track how many big cards we've placed
 
-    // Generate 60 cards with sporadic placement using spacers
+    // Social feed: Masonry layout with alternating big cards and random spacers
     while (slotIndex < TOTAL_CARDS) {
-      const rand = Math.random();
       let size, colSpan;
 
-      // Randomly pick size
-      if (rand < sizeWeights['1x1']) {
-        size = '1x1';
-        colSpan = 1;
-      } else {
-        size = '2x3';
-        colSpan = 2;
-      }
+      // Check if this card should be big
+      const isBigCard = bigCardSet.has(slotIndex);
 
-      // Add spacer with higher probability if we're about to place a card in the same column as previous row
-      const shouldAddSpacer = Math.random() < 0.45 || (currentColumn === rowStartColumn && Math.random() < 0.7);
-
-      if (shouldAddSpacer && currentColumn < cardsPerRow - 1) {
-        pattern.push({ id: `spacer-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+      // Only add random spacers if we're NOT about to place a big card
+      // This prevents spacers from messing up big card positioning
+      if (!isBigCard && seededRandom() < 0.10 && currentColumn < cardsPerRow - 1) {
+        pattern.push({ id: `spacer-random-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
         currentColumn++;
       }
 
-      // If card doesn't fit in current row, add spacers to fill row
+      if (isBigCard) {
+        size = '2x3';
+        colSpan = 2;
+
+        // FORCE strict alternation: even big cards go left (0), odd go right (1)
+        const targetColumn = bigCardCount % 2; // 0, 1, 0, 1, 0, 1...
+        console.log(`Big Card ${bigCardCount}: slotIndex=${slotIndex}, targetColumn=${targetColumn}, currentColumn=${currentColumn}`);
+        bigCardCount++;
+
+        // Move to target column
+        if (currentColumn < targetColumn) {
+          // Add spacers to reach target column
+          console.log(`  Adding spacers to reach column ${targetColumn}`);
+          while (currentColumn < targetColumn) {
+            pattern.push({ id: `spacer-shift-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+            currentColumn++;
+          }
+        } else if (currentColumn > targetColumn) {
+          // Wrap to next row and position at target
+          console.log(`  Wrapping to next row for column ${targetColumn}`);
+          while (currentColumn < cardsPerRow) {
+            pattern.push({ id: `spacer-fill-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+            currentColumn++;
+          }
+          currentColumn = 0;
+          while (currentColumn < targetColumn) {
+            pattern.push({ id: `spacer-shift2-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+            currentColumn++;
+          }
+        }
+        console.log(`  Placing big card at column ${currentColumn}`);
+      } else {
+        size = '1x1';
+        colSpan = 1;
+      }
+
+      // If card doesn't fit in current row, fill remaining space and wrap
       if (currentColumn + colSpan > cardsPerRow) {
         while (currentColumn < cardsPerRow) {
           pattern.push({ id: `spacer-fill-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
           currentColumn++;
         }
         currentColumn = 0;
-        rowStartColumn = -1; // Reset for new row
       }
 
-      // Track the starting column of this card if it's the first in the row
-      if (rowStartColumn === -1) {
-        rowStartColumn = currentColumn;
-      }
-
-      // Add the card
-      pattern.push({ id: `slot-${slotIndex}`, size, colSpan });
+      // Add the card with its starting column position
+      const gridColumnStart = currentColumn + 1; // CSS grid is 1-indexed
+      pattern.push({ id: `slot-${slotIndex}`, size, colSpan, gridColumnStart });
       currentColumn += colSpan;
+      if (isBigCard) {
+        console.log(`  After placing: currentColumn=${currentColumn}, gridColumnStart=${gridColumnStart}`);
+      }
 
       // Reset column counter when row is complete
       if (currentColumn >= cardsPerRow) {
+        if (isBigCard) {
+          console.log(`  Row complete, wrapping to next row`);
+        }
         currentColumn = 0;
-        rowStartColumn = -1; // Reset for new row
       }
 
       slotIndex++;
     }
 
+    console.log(`Total big cards placed: ${bigCardCount}`);
+    console.log(`Pattern length: ${pattern.length}`);
     return pattern;
   }, [cardsPerRow]); // Regenerate when cardsPerRow changes
 
@@ -179,8 +230,8 @@ const PortraitMode = ({
         const contentHeight = contentHeightRef.current || 2500;
         const viewportHeight = window.innerHeight;
 
-        // Loop when we've scrolled past the entire content
-        if (newPosition > contentHeight + viewportHeight) {
+        // Loop when we've scrolled past the entire content (at the end, not before)
+        if (newPosition > contentHeight + viewportHeight * 1.5) {
           // Shuffle all content for next cycle
           setCardContent(() => {
             const cardSlots = layoutPattern.filter(slot => !slot.isSpacer);
@@ -434,6 +485,10 @@ const PortraitMode = ({
               key={slot.id}
               data-slot-id={slot.id}
               className={`${getCardClasses(size)} flex flex-col`}
+              style={{
+                gridColumnStart: slot.gridColumnStart,
+                gridColumnEnd: slot.gridColumnStart + slot.colSpan
+              }}
             >
               {/* Card Header */}
               <div className="flex-shrink-0" style={{ ...getHeaderStyle(), ...getHeaderPadding(size) }}>
