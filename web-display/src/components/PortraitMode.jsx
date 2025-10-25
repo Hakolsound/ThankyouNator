@@ -32,8 +32,8 @@ const PortraitMode = ({
   const lastScrollTimeRef = useRef(Date.now());
   const lastRotationRef = useRef(Date.now());
 
-  // Fixed layout grid with 60 card slots
-  const TOTAL_CARDS = 60;
+  // Fixed layout grid with 100 card slots
+  const TOTAL_CARDS = 100;
 
   // Generate sporadic layout with spacers for visual interest
   const layoutPattern = useMemo(() => {
@@ -46,9 +46,9 @@ const PortraitMode = ({
       return seed / 233280;
     };
 
-    // Pre-determine big card positions with enforced spacing (28% = 17 out of 60)
+    // Pre-determine big card positions with enforced spacing (20% = 20 out of 100)
     // Distribute them evenly to prevent clustering
-    const totalBigCards = Math.floor(TOTAL_CARDS * 0.28); // 17 cards
+    const totalBigCards = Math.floor(TOTAL_CARDS * 0.20); // 20 cards
     const bigCardIndices = [];
     const minGap = Math.floor(TOTAL_CARDS / totalBigCards) - 1; // Minimum gap between big cards
 
@@ -62,7 +62,6 @@ const PortraitMode = ({
     }
 
     const bigCardSet = new Set(bigCardIndices);
-    console.log(`Big card indices (${bigCardIndices.length}):`, bigCardIndices);
 
     let currentColumn = 0;
     let slotIndex = 0;
@@ -88,40 +87,37 @@ const PortraitMode = ({
 
         // FORCE strict alternation: even big cards go left (0), odd go right (1)
         const targetColumn = bigCardCount % 2; // 0, 1, 0, 1, 0, 1...
-        console.log(`Big Card ${bigCardCount}: slotIndex=${slotIndex}, targetColumn=${targetColumn}, currentColumn=${currentColumn}`);
         bigCardCount++;
 
         // Move to target column
         if (currentColumn < targetColumn) {
-          // Add spacers to reach target column
-          console.log(`  Adding spacers to reach column ${targetColumn}`);
+          // Add small cards to reach target column instead of empty spacers
           while (currentColumn < targetColumn) {
-            pattern.push({ id: `spacer-shift-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+            pattern.push({ id: `filler-${slotIndex}-${currentColumn}`, size: '1x1', colSpan: 1, gridColumnStart: currentColumn + 1 });
             currentColumn++;
           }
         } else if (currentColumn > targetColumn) {
-          // Wrap to next row and position at target
-          console.log(`  Wrapping to next row for column ${targetColumn}`);
+          // Fill remaining columns with small cards, then wrap to next row
           while (currentColumn < cardsPerRow) {
-            pattern.push({ id: `spacer-fill-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+            pattern.push({ id: `filler-end-${slotIndex}-${currentColumn}`, size: '1x1', colSpan: 1, gridColumnStart: currentColumn + 1 });
             currentColumn++;
           }
           currentColumn = 0;
+          // Add small cards to reach target column
           while (currentColumn < targetColumn) {
-            pattern.push({ id: `spacer-shift2-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+            pattern.push({ id: `filler-start-${slotIndex}-${currentColumn}`, size: '1x1', colSpan: 1, gridColumnStart: currentColumn + 1 });
             currentColumn++;
           }
         }
-        console.log(`  Placing big card at column ${currentColumn}`);
       } else {
         size = '1x1';
         colSpan = 1;
       }
 
-      // If card doesn't fit in current row, fill remaining space and wrap
+      // If card doesn't fit in current row, fill remaining space with small cards and wrap
       if (currentColumn + colSpan > cardsPerRow) {
         while (currentColumn < cardsPerRow) {
-          pattern.push({ id: `spacer-fill-${slotIndex}-${currentColumn}`, size: 'spacer', isSpacer: true });
+          pattern.push({ id: `filler-wrap-${slotIndex}-${currentColumn}`, size: '1x1', colSpan: 1, gridColumnStart: currentColumn + 1 });
           currentColumn++;
         }
         currentColumn = 0;
@@ -131,23 +127,15 @@ const PortraitMode = ({
       const gridColumnStart = currentColumn + 1; // CSS grid is 1-indexed
       pattern.push({ id: `slot-${slotIndex}`, size, colSpan, gridColumnStart });
       currentColumn += colSpan;
-      if (isBigCard) {
-        console.log(`  After placing: currentColumn=${currentColumn}, gridColumnStart=${gridColumnStart}`);
-      }
 
       // Reset column counter when row is complete
       if (currentColumn >= cardsPerRow) {
-        if (isBigCard) {
-          console.log(`  Row complete, wrapping to next row`);
-        }
         currentColumn = 0;
       }
 
       slotIndex++;
     }
 
-    console.log(`Total big cards placed: ${bigCardCount}`);
-    console.log(`Pattern length: ${pattern.length}`);
     return pattern;
   }, [cardsPerRow]); // Regenerate when cardsPerRow changes
 
@@ -194,11 +182,11 @@ const PortraitMode = ({
   // Auto-scroll speed mapping
   const scrollSpeedValue = useMemo(() => {
     const speeds = {
-      slow: 0.25,
-      medium: 0.5,
-      fast: 0.8
+      slow: 0.3,
+      medium: 0.6,
+      fast: 1
     };
-    return speeds[scrollSpeed] || 0.5;
+    return speeds[scrollSpeed] || 0.6;
   }, [scrollSpeed]);
 
   // Focus frequency mapping
@@ -212,18 +200,45 @@ const PortraitMode = ({
     return frequencies[focusFrequency] || 1;
   }, [focusFrequency]);
 
-  // Auto-scroll with infinite loop
+  // Store refs to avoid re-creating animation loop
+  const layoutPatternRef = useRef(layoutPattern);
+  const notesRef = useRef(notes);
+  const scrollSpeedRef = useRef(scrollSpeedValue);
+
   useEffect(() => {
-    if (notes.length === 0) {
+    layoutPatternRef.current = layoutPattern;
+  }, [layoutPattern]);
+
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
+
+  useEffect(() => {
+    scrollSpeedRef.current = scrollSpeedValue;
+  }, [scrollSpeedValue]);
+
+  // Auto-scroll with infinite loop - optimized with refs
+  useEffect(() => {
+    if (notesRef.current.length === 0) {
       return;
     }
 
-    const animate = () => {
-      const now = Date.now();
-      const delta = now - lastScrollTimeRef.current;
-      lastScrollTimeRef.current = now;
+    // Reset timestamp on effect start
+    lastScrollTimeRef.current = null;
 
-      const scrollDelta = scrollSpeedValue * delta / 16.67;
+    const animate = (timestamp) => {
+      if (!lastScrollTimeRef.current) {
+        lastScrollTimeRef.current = timestamp;
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      const delta = timestamp - lastScrollTimeRef.current;
+      lastScrollTimeRef.current = timestamp;
+
+      // Smooth delta capping to prevent jumps
+      const cappedDelta = Math.min(delta, 32); // Cap at 2 frames worth
+      const scrollDelta = scrollSpeedRef.current * cappedDelta / 16.67;
 
       setScrollPosition(prev => {
         const newPosition = prev + scrollDelta;
@@ -231,12 +246,12 @@ const PortraitMode = ({
         const viewportHeight = window.innerHeight;
 
         // Loop when we've scrolled past the entire content (at the end, not before)
-        if (newPosition > contentHeight + viewportHeight * 1.5) {
+        if (newPosition > contentHeight + viewportHeight * 2) {
           // Shuffle all content for next cycle
           setCardContent(() => {
-            const cardSlots = layoutPattern.filter(slot => !slot.isSpacer);
+            const cardSlots = layoutPatternRef.current.filter(slot => !slot.isSpacer);
             const content = {};
-            const shuffledNotes = [...notes].sort(() => Math.random() - 0.5);
+            const shuffledNotes = [...notesRef.current].sort(() => Math.random() - 0.5);
 
             cardSlots.forEach((slot, idx) => {
               content[slot.id] = shuffledNotes[idx % shuffledNotes.length];
@@ -261,7 +276,7 @@ const PortraitMode = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [scrollSpeedValue, notes, layoutPattern]);
+  }, []); // Empty dependency array - use refs instead
 
   // Random focus effect - show focused card in overlay
   useEffect(() => {
@@ -466,8 +481,12 @@ const PortraitMode = ({
         className="grid gap-4 p-8 auto-rows-[100px]"
         style={{
           gridTemplateColumns: `repeat(${cardsPerRow}, 1fr)`,
-          transform: `translateY(-${scrollPosition}px) translateZ(0)`,
-          willChange: 'transform'
+          transform: `translate3d(0, -${scrollPosition}px, 0)`,
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+          WebkitFontSmoothing: 'antialiased',
+          transformStyle: 'preserve-3d'
         }}
       >
         {layoutPattern.map((slot) => {
@@ -487,7 +506,13 @@ const PortraitMode = ({
               className={`${getCardClasses(size)} flex flex-col`}
               style={{
                 gridColumnStart: slot.gridColumnStart,
-                gridColumnEnd: slot.gridColumnStart + slot.colSpan
+                gridColumnEnd: slot.gridColumnStart + slot.colSpan,
+                contain: 'layout style paint',
+                contentVisibility: 'auto',
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                WebkitFontSmoothing: 'antialiased'
               }}
             >
               {/* Card Header */}
@@ -507,6 +532,7 @@ const PortraitMode = ({
                   alt="Thank you note"
                   className={`w-full h-full ${getImageFit(size)}`}
                   loading="lazy"
+                  decoding="async"
                 />
               </div>
             </div>
