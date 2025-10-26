@@ -79,6 +79,24 @@ function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  // Listen for F/f key to toggle fullscreen
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      if (event.key === 'f' || event.key === 'F') {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+            console.error('Error attempting to enable fullscreen:', err);
+          });
+        } else {
+          document.exitFullscreen();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   // Process new notes - accumulate instead of replacing
   useEffect(() => {
     if (notes.length > 0) {

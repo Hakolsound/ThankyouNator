@@ -245,8 +245,8 @@ const PortraitMode = ({
         const contentHeight = contentHeightRef.current || 2500;
         const viewportHeight = window.innerHeight;
 
-        // Loop when we've scrolled past the entire content (at the end, not before)
-        if (newPosition > contentHeight + viewportHeight * 2) {
+        // Loop when we've scrolled past the entire content with minimal gap
+        if (newPosition > contentHeight) {
           // Shuffle all content for next cycle
           setCardContent(() => {
             const cardSlots = layoutPatternRef.current.filter(slot => !slot.isSpacer);
@@ -260,7 +260,7 @@ const PortraitMode = ({
             return content;
           });
 
-          return 0; // Reset to beginning
+          return 0; // Reset to beginning immediately
         }
 
         return newPosition;
